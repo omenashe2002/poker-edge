@@ -238,6 +238,43 @@ function run(w) {
     w.toolsUI.tab = 'combos'; w.rerender();
     ok(doc.body.textContent.indexOf('TOTAL') >= 0, 'combo counter totals');
 
+    // home game ledger: 3 players, settlement is minimal and sums to zero
+    w.navTo('live');
+    ok(doc.body.textContent.indexOf('Host a home game') >= 0, 'home game card renders');
+    w.newHomeGame();
+    w.hgAddPlayer('Alice'); w.hgAddPlayer('Bob'); w.hgAddPlayer('Carol');
+    var hg = w.STATE.homeGame;
+    hg.players[0].buyins = [100]; hg.players[0].cashout = 250;  // +150
+    hg.players[1].buyins = [100, 100]; hg.players[1].cashout = 20; // -180
+    hg.players[2].buyins = [100]; hg.players[2].cashout = 130; // +30
+    var tr = w.hgSettle(hg.players);
+    ok(tr.length <= 2, 'settlement uses at most n-1 transfers: ' + tr.length);
+    var paid = {};
+    tr.forEach(function (x) {
+      paid[x.from] = (paid[x.from] || 0) - x.amt;
+      paid[x.to] = (paid[x.to] || 0) + x.amt;
+    });
+    ok(Math.abs((paid['Alice'] || 0) - 150) < 0.01 && Math.abs((paid['Bob'] || 0) + 180) < 0.01 && Math.abs((paid['Carol'] || 0) - 30) < 0.01, 'transfers exactly cover every net');
+    w.rerender();
+    ok(doc.body.textContent.indexOf('Settle up') >= 0, 'ledger UI renders');
+    w.STATE.homeGame.transfers = tr;
+    w.STATE.homeGames = w.STATE.homeGames || [];
+    w.STATE.homeGame.settled = true;
+    w.STATE.homeGames.push(w.STATE.homeGame);
+    w.STATE.homeGame = null;
+    w.rerender();
+    ok(doc.body.textContent.indexOf('Past home games') >= 0, 'home game history renders');
+
+    // video layer: lesson picks + masters library
+    w.navTo('study');
+    w.studyState.tab = 'course'; w.studyState.lessonId = w.LESSONS[0].id; w.rerender();
+    var vlinks = doc.querySelectorAll('.video-link');
+    ok(vlinks.length >= 2, 'lesson has master video picks');
+    ok(vlinks[0].href.indexOf('youtube.com/results') >= 0, 'video links are stable YouTube searches');
+    w.studyState.lessonId = null; w.rerender();
+    ok(doc.body.textContent.indexOf('The Masters') >= 0, 'masters library card renders');
+    ok(doc.querySelectorAll('.master-row').length === 8, '8 master channels listed');
+
     // stats
     w.navTo('stats');
     ok(doc.body.textContent.indexOf('Total profit') >= 0, 'stats headline renders');

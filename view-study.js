@@ -185,6 +185,7 @@ function renderCourse(root) {
     });
     root.appendChild(card);
   });
+  root.appendChild(mastersLibraryCard());
 }
 
 function renderLesson(root, id) {
@@ -221,6 +222,8 @@ function renderLesson(root, id) {
     tk.appendChild(ul2);
     card.appendChild(tk);
   }
+  var vb = videoBox(L.id);
+  if (vb) card.appendChild(vb);
   root.appendChild(card);
 
   /* checkpoint quiz */

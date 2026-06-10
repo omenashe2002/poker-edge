@@ -17,6 +17,8 @@ var DEFAULT_STATE = {
   drills: [],       // drill attempts
   srs: {},          // spaced repetition: "chartId|label" -> {level, due, misses}
   exams: [],        // exam history: {ts, score, grade}
+  homeGame: null,   // active home-game ledger
+  homeGames: [],    // archived home games
   goals: { dailyTarget: 30, streak: 0, bestStreak: 0, lastGoalDay: '', day: '', todayCount: 0 },
   lessons: {}       // lessonId -> {done, ts}
 };

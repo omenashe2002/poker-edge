@@ -13,8 +13,25 @@ var liveUI = { openSeat: null, logging: false, logDraft: null };
 function renderLive(root) {
   clear(root);
   var s = STATE.liveSession;
-  if (!s) return renderSessionSetup(root);
-  renderActiveSession(root, s);
+  if (s) return renderActiveSession(root, s);
+  if (STATE.homeGame) {
+    root.appendChild(sectionTitle('Home Game', 'Track every buy-in; settle with the fewest possible payments.'));
+    return renderHomeLedger(root);
+  }
+  renderSessionSetup(root);
+  renderHomeGameCard(root);
+  renderHomeHistory(root);
+}
+
+function renderHomeGameCard(root) {
+  var card = el('div', { class: 'card homegame-card' });
+  card.appendChild(el('div', { class: 'chart-title', text: '🏠 Host a home game' }));
+  card.appendChild(el('div', { class: 'chart-sub', text: 'The ledger for cash-free home games: log every buy-in and cash-out per player, catch chip-count mismatches, and settle the night in the fewest possible payments — no spreadsheets, no arguments.' }));
+  card.appendChild(el('button', {
+    class: 'btn accent block', text: 'Start home game ledger',
+    onclick: function () { newHomeGame(); rerender(); }
+  }));
+  root.appendChild(card);
 }
 
 /* ---------- setup ---------- */

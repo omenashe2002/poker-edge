@@ -14,7 +14,10 @@ var DEFAULT_STATE = {
   liveSession: null, // active session object or null
   sessions: [],     // finished sessions
   hands: [],        // logged hands
-  drills: []        // drill attempts
+  drills: [],       // drill attempts
+  srs: {},          // spaced repetition: "chartId|label" -> {level, due, misses}
+  goals: { dailyTarget: 30, streak: 0, bestStreak: 0, lastGoalDay: '', day: '', todayCount: 0 },
+  lessons: {}       // lessonId -> {done, ts}
 };
 
 var STATE = null;
@@ -114,6 +117,88 @@ function drillStats(mode, sinceTs) {
     if (d.correct) right++;
   }
   return { n: n, right: right, acc: n ? right / n : 0 };
+}
+
+/* ---- daily goal + streak ---- */
+function todayStr() { return new Date().toISOString().slice(0, 10); }
+function yesterdayStr() { return new Date(Date.now() - 864e5).toISOString().slice(0, 10); }
+function goalState() {
+  var g = STATE.goals;
+  if (g.day !== todayStr()) { g.day = todayStr(); g.todayCount = 0; }
+  return g;
+}
+function recordAnswerForGoal() {
+  var g = goalState();
+  g.todayCount++;
+  if (g.todayCount === g.dailyTarget) { // goal hit right now
+    if (g.lastGoalDay === yesterdayStr()) g.streak++;
+    else if (g.lastGoalDay !== todayStr()) g.streak = 1;
+    g.lastGoalDay = todayStr();
+    if (g.streak > g.bestStreak) g.bestStreak = g.streak;
+  }
+}
+function currentStreak() {
+  var g = goalState();
+  // streak shown only if alive (goal hit today or yesterday)
+  if (g.lastGoalDay === todayStr() || g.lastGoalDay === yesterdayStr()) return g.streak;
+  return 0;
+}
+
+/* ---- spaced repetition (SRS) ----
+   miss -> level 0, due now. correct in review -> level+1,
+   due in [1,3,7,14,30] days. miss in review -> back to level 0. */
+var SRS_DAYS = [1, 3, 7, 14, 30];
+function srsKey(chartId, label) { return chartId + '|' + label; }
+function srsRecordMiss(chartId, label) {
+  var k = srsKey(chartId, label);
+  var it = STATE.srs[k] || { level: 0, misses: 0 };
+  it.level = 0;
+  it.misses = (it.misses || 0) + 1;
+  it.due = Date.now();
+  STATE.srs[k] = it;
+}
+function srsRecordPass(chartId, label) {
+  var k = srsKey(chartId, label);
+  var it = STATE.srs[k];
+  if (!it) return;
+  it.level = Math.min(it.level + 1, SRS_DAYS.length - 1);
+  it.due = Date.now() + SRS_DAYS[it.level] * 864e5;
+  if (it.level >= SRS_DAYS.length - 1) delete STATE.srs[k]; // graduated
+}
+function srsDue() {
+  var now = Date.now(), out = [];
+  for (var k in STATE.srs) {
+    if (STATE.srs[k].due <= now) {
+      var parts = k.split('|');
+      out.push({ chartId: parts[0], label: parts[1], item: STATE.srs[k] });
+    }
+  }
+  return out;
+}
+
+/* ---- mastery: severity-weighted accuracy over recent attempts ---- */
+function chartMastery(chartId, windowN) {
+  windowN = windowN || 40;
+  var creds = [];
+  for (var i = STATE.drills.length - 1; i >= 0 && creds.length < windowN; i--) {
+    var d = STATE.drills[i];
+    if (d.chartId !== chartId) continue;
+    creds.push(d.credit !== undefined ? d.credit : (d.correct ? 1 : 0));
+  }
+  if (!creds.length) return null;
+  var s = 0;
+  for (var j = 0; j < creds.length; j++) s += creds[j];
+  return { mastery: s / creds.length, n: creds.length };
+}
+function groupMastery(group) {
+  var charts = chartsByGroup(group);
+  if (group === 'vs3bet') charts = charts.concat(chartsByGroup('vs4bet'));
+  var sum = 0, n = 0;
+  charts.forEach(function (c) {
+    var m = chartMastery(c.spec.id);
+    if (m) { sum += m.mastery; n++; }
+  });
+  return n ? sum / n : null;
 }
 
 if (typeof module !== 'undefined') {

@@ -67,26 +67,77 @@ function run(w) {
     w.studyState.tab = 'types'; w.rerender();
     ok(doc.body.textContent.indexOf('Calling Station') >= 0, 'player types render');
 
-    // RFI drill, 20 random answers
+    // RFI quick drill, 12 random answers, with scenes + severity grading
     w.navTo('train');
-    w.startDrill('rfi');
-    for (var i = 0; i < 20; i++) {
+    ok(doc.body.textContent.indexOf('Today:') >= 0, 'daily goal widget renders');
+    w.startDrill('rfi', 12, false);
+    ok(!!doc.querySelector('.mini-felt'), 'visual table scene renders');
+    ok(doc.querySelectorAll('.mseat').length === 9, 'scene has 9 seats');
+    for (var i = 0; i < 12; i++) {
       var btns = doc.querySelectorAll('.btn.answer');
       if (!btns.length) break;
       btns[Math.floor(Math.random() * btns.length)].click();
     }
-    ok(w.trainState.done === true, 'drill completes after 20 questions');
-    ok(w.STATE.drills.length === 20, '20 drill attempts recorded');
-    ok(!!doc.querySelector('.big-score'), 'summary score shown');
+    ok(w.trainState.done === true, 'quick drill completes after 12');
+    ok(w.STATE.drills.length === 12, '12 attempts recorded');
+    ok(!!doc.querySelector('.grade-letter'), 'letter grade shown');
+    var withSeverity = w.STATE.drills.filter(function (d) { return !d.correct; });
+    var sevOk = withSeverity.every(function (d) { return ['close','mistake','blunder'].indexOf(d.severity) >= 0; });
+    ok(sevOk, 'all misses carry a severity');
+    ok(w.goalState().todayCount === 12, 'goal counter advanced to 12');
+
+    // force a miss to test SRS + explanation
+    w.trainState.mode = null; w.rerender();
+    w.startDrill('rfi', 12, false);
+    w.trainState.q = { kind: 'range', chartId: 'rfi9-utg', label: 'AA', hand: [w.parseCard('As'), w.parseCard('Ah')] };
+    w.rerender();
+    w.gradeRange('fold'); // blunder: folding AA
+    ok(doc.body.textContent.indexOf('Blunder') >= 0, 'blunder feedback shown');
+    ok(doc.querySelector('.fb-why') && doc.querySelector('.fb-why').textContent.length > 30, 'explanation text rendered');
+    ok(w.srsDue().length >= 1, 'missed hand entered review queue');
+    w.trainState.mode = null; w.rerender();
+    ok(doc.body.textContent.indexOf('Review queue') >= 0, 'review queue card appears');
+
+    // review session clears the due item
+    w.startReview();
+    var guard = 0;
+    while (!w.trainState.done && guard++ < 25) {
+      var q = w.trainState.q;
+      var acc = w.correctAnswers(q.chartId, q.label);
+      w.gradeRange(acc[0]); // answer correctly
+    }
+    ok(w.trainState.done === true, 'review session completes');
 
     // math drill
-    w.startDrill('math');
-    for (var m = 0; m < 20; m++) {
+    w.startDrill('math', 12, false);
+    for (var m = 0; m < 12; m++) {
       var mb = doc.querySelectorAll('.btn.answer');
       if (!mb.length) break;
       mb[0].click();
     }
     ok(w.trainState.done === true, 'math drill completes');
+    w.trainState.mode = null;
+
+    // course: open lesson 1, answer quiz correctly, completes
+    w.navTo('study');
+    w.studyState.tab = 'course'; w.rerender();
+    ok(doc.body.textContent.indexOf('lessons complete') >= 0, 'course list renders');
+    w.studyState.lessonId = w.LESSONS[0].id; w.studyState.quizState = {}; w.rerender();
+    ok(doc.querySelectorAll('.lesson-p').length >= 3, 'lesson paragraphs render');
+    w.LESSONS[0].quiz.forEach(function (item, qi) { w.studyState.quizState[qi] = item.a; });
+    w.checkLessonComplete(w.LESSONS[0]);
+    w.rerender();
+    ok(w.STATE.lessons[w.LESSONS[0].id] && w.STATE.lessons[w.LESSONS[0].id].done === true, 'lesson marked complete');
+    w.studyState.lessonId = null;
+
+    // chart page: border summary + tappable cell info
+    w.studyState.tab = 'rfi'; w.studyState.chartId = 'rfi9-utg'; w.rerender();
+    ok(doc.body.textContent.indexOf('Memorize the borders') >= 0, 'border summary renders');
+    var cells = doc.querySelectorAll('.cell.tappable');
+    ok(cells.length === 169, 'tappable grid');
+    cells[0].click(); // AA
+    ok(!!doc.querySelector('.cell-info'), 'cell info panel opens');
+    w.studyState.cellInfo = null;
 
     // live session
     w.navTo('live');

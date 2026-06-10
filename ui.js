@@ -203,3 +203,88 @@ function sectionTitle(t, sub) {
 
 /* confirm helper */
 function confirmAction(msg, fn) { if (window.confirm(msg)) fn(); }
+
+/* ---------- mini table scene (visual drill situations) ---------- */
+var ACTION_ORDER_9 = ['UTG', 'UTG+1', 'MP', 'LJ', 'HJ', 'CO', 'BTN', 'SB', 'BB'];
+
+function tableScene(cfg) {
+  var order = ACTION_ORDER_9;
+  var n = order.length;
+  var felt = el('div', { class: 'mini-felt' });
+  var heroIdx = order.indexOf(cfg.hero);
+  if (heroIdx < 0) heroIdx = 0;
+  for (var i = 0; i < n; i++) {
+    var pos = order[i];
+    var angle = Math.PI / 2 + (Math.PI * 2 * (i - heroIdx) / n);
+    var x = 50 + 42 * Math.cos(angle);
+    var y = 50 + 36 * Math.sin(angle);
+    var isHero = pos === cfg.hero;
+    var folded = (cfg.folds || []).indexOf(pos) >= 0;
+    var cls = 'mseat' + (isHero ? ' hero' : '') + (folded ? ' folded' : '');
+    var seat = el('div', { class: cls, style: 'left:' + x + '%;top:' + y + '%' });
+    seat.appendChild(el('div', { class: 'mseat-pos', text: isHero ? 'YOU' : pos }));
+    if (isHero && cfg.stack) seat.appendChild(el('div', { class: 'mseat-stack', text: cfg.stack }));
+    if (pos === 'BTN') seat.appendChild(el('div', { class: 'dealer-btn', text: 'D' }));
+    var chip = cfg.chips && cfg.chips[pos];
+    if (chip) seat.appendChild(el('div', { class: 'mchip', text: chip }));
+    if (folded && !isHero) seat.appendChild(el('div', { class: 'mfold', text: 'fold' }));
+    felt.appendChild(seat);
+  }
+  if (cfg.toAct) felt.appendChild(el('div', { class: 'mini-pot', text: cfg.toAct }));
+  return felt;
+}
+
+/* Build a scene from a chart spec for drill questions */
+function sceneForSpec(spec) {
+  var posMap = { 'EP': 'UTG', 'MP': 'MP', 'LJ': 'LJ', 'HJ': 'HJ', 'CO': 'CO', 'BTN': 'BTN', 'SB': 'SB', 'BB': 'BB', 'Any': 'CO', 'UTG': 'UTG', 'UTG+1': 'UTG+1' };
+  function seatOf(p) { return posMap[p] || 'CO'; }
+  var hero = seatOf(spec.pos);
+  var folds = [], chips = {};
+  var heroAt = ACTION_ORDER_9.indexOf(hero);
+  function foldUpTo(stopPos) {
+    var stop = ACTION_ORDER_9.indexOf(stopPos);
+    for (var i = 0; i < stop; i++) folds.push(ACTION_ORDER_9[i]);
+  }
+  function foldBetween(aPos, bPos) {
+    var a = ACTION_ORDER_9.indexOf(aPos), b = ACTION_ORDER_9.indexOf(bPos);
+    for (var i = a + 1; i < b; i++) folds.push(ACTION_ORDER_9[i]);
+  }
+  var toAct = 'your move';
+  if (spec.group === 'rfi' || spec.group === 'pushfold') {
+    foldUpTo(hero);
+    toAct = 'folded to you';
+  } else if (spec.group === 'vsrfi') {
+    var raiserKey = (spec.vs || '').split(' ')[0];
+    var raiser = seatOf(raiserKey);
+    foldUpTo(raiser);
+    chips[raiser] = 'raise';
+    foldBetween(raiser, hero);
+    toAct = raiser + ' raised → you';
+  } else if (spec.group === 'vs3bet') {
+    foldUpTo(hero);
+    chips[hero] = 'open';
+    var tb = (spec.vs || '').indexOf('BTN') >= 0 ? 'BTN' : (spec.vs || '').indexOf('BB') >= 0 ? 'BB' : 'SB';
+    if (tb === hero) tb = 'BB';
+    chips[tb] = '3-bet';
+    foldBetween(hero, tb);
+    toAct = 'you opened, ' + tb + ' 3-bet';
+  } else if (spec.group === 'vs4bet') {
+    chips[hero] = '3-bet';
+    var fb = hero === 'BTN' ? 'CO' : 'BTN';
+    chips[fb] = '4-bet';
+    toAct = 'you 3-bet, facing a 4-bet';
+  }
+  return { hero: hero, folds: folds, chips: chips, stack: spec.stack ? spec.stack + 'bb' : null, toAct: toAct };
+}
+
+/* tiny mastery/progress bar */
+function masteryBar(pct, label) {
+  var wrap = el('div', { class: 'mbar-wrap' });
+  if (label) wrap.appendChild(el('span', { class: 'mbar-label', text: label }));
+  var bar = el('div', { class: 'mbar' });
+  var fillCls = pct === null ? '' : pct >= 0.85 ? ' good' : pct >= 0.65 ? ' mid' : ' low';
+  bar.appendChild(el('div', { class: 'mbar-fill' + fillCls, style: 'width:' + (pct === null ? 0 : Math.round(pct * 100)) + '%' }));
+  wrap.appendChild(bar);
+  wrap.appendChild(el('span', { class: 'mbar-pct', text: pct === null ? 'new' : Math.round(pct * 100) + '%' }));
+  return wrap;
+}

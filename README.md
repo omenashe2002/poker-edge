@@ -39,8 +39,8 @@ Notes:
 
 | Tab | What it does |
 |---|---|
-| 📖 **Study** | 51 preflop charts: RFI for all 9-max positions (LJ chart doubles as 6-max UTG), blind defense vs every open, SB/BTN 3-betting, facing 3-bets/4-bets, and MTT push/fold (5–15bb, Nash-style). Plus a live-poker cheat sheet and the player-type field guide. |
-| 🎓 **Train** | Drills graded against the charts: opening, defending, vs 3-bet, push/fold, and poker math (pot odds, MDF, bluff break-even, outs). Mixed-frequency hands accept multiple answers — exactly like the solver plays them. Every answer is recorded. |
+| 📖 **Study** | A 10-lesson mini-course (ranges → position → pot odds → MDF → bluff math → blockers → border memorization → SPR → exploits → variance) with checkpoint quizzes. 51 preflop charts with **tap-any-cell explanations** and an auto-generated **border summary** per chart (memorize ~6 facts, not 169 cells). Plus the live cheat sheet and player-type field guide. |
+| 🎓 **Train** | Every question shows a **visual table scene** (button, folds, raiser, your seat). Answers are graded by **severity** — close calls (border/mixed hands) cost half, blunders flagged — and every wrong answer gets a real **explanation**: blockers, playability, where the border sits. Misses enter a **spaced-repetition review queue** (1→3→7→14→30 days). Sampling focuses on range borders, charts adapt to your weakest spots, and daily goals + streaks + mastery meters keep score. |
 | ♠️ **Live** | Start a session, lay out the table, tap seats to mark who played/raised each hand (auto VPIP/PFR), tag player types, take notes. The exploit advisor shows the max-EV adjustments vs each type. Players persist across sessions — your private book of regulars. Quick 10-second hand capture between hands. |
 | 🃏 **Hands** | Post-session review: add boards and street notes, run the GTO preflop check against the right chart, tag your leaks. |
 | 🧮 **Tools** | Monte Carlo equity calculator (hand vs hand, vs range presets, vs your charts, on any board), pot odds/MDF/bluff-share calculator, SPR advisor, outs table, combo counter. |
@@ -59,12 +59,14 @@ The math engine and app are covered by tests (hand evaluator vs known equities l
 ```
 node test-engine.js
 node test-ranges.js
+node test-teach.js
 npm install jsdom && node test-app.js
 ```
 
 ## Roadmap ideas (v2)
 
 - In-browser postflop solver (WASM) for c-bet/turn spots
+- Hand-history import & auto-grading vs charts
 - Range-vs-range equity and equity graphs
 - ICM for tournament decisions
 - Per-position win/loss analytics from logged hands

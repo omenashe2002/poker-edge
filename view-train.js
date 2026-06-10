@@ -1,93 +1,179 @@
 /* ============================================================
-   EDGE — view-train.js
-   Drill engine: range drills graded against the charts, plus
-   poker-math drills (pot odds, MDF, bluff break-even, outs).
-   Every attempt is stored for the improvement analytics.
+   EDGE — view-train.js  (v2)
+   The trainer: border-focused sampling, severity-weighted
+   grading with real explanations, spaced repetition of misses,
+   daily goals + streaks, per-chart mastery, quick & deep modes.
    ============================================================ */
 'use strict';
 
 var DRILL_MODES = [
-  { id: 'rfi', label: 'Opening (RFI)', desc: 'Position + hand → Raise or Fold', group: 'rfi' },
+  { id: 'rfi', label: 'Opening (RFI)', desc: 'Folded to you → Raise or Fold', group: 'rfi' },
   { id: 'vsrfi', label: 'Defending', desc: 'Facing an open → Fold / Call / 3-Bet', group: 'vsrfi' },
   { id: 'vs3bet', label: 'vs 3-Bet', desc: 'You opened, got 3-bet → Fold / Call / 4-Bet', group: 'vs3bet' },
-  { id: 'pushfold', label: 'Push/Fold', desc: 'Short stack MTT → Shove or Fold', group: 'pushfold' },
+  { id: 'pushfold', label: 'Push/Fold', desc: 'Short-stack MTT → Shove or Fold', group: 'pushfold' },
   { id: 'math', label: 'Poker Math', desc: 'Pot odds · MDF · bluff break-even · outs', group: null }
 ];
 
-var trainState = { mode: null, q: null, qNum: 0, right: 0, total: 20, done: false, lastFeedback: null };
+var trainState = {
+  mode: null, length: 12, q: null, qNum: 0, done: false,
+  results: [], lastFeedback: null, review: false, reviewItems: []
+};
 
 function renderTrain(root) {
   clear(root);
-  root.appendChild(sectionTitle('Train', 'Drill until the charts are instinct. Accuracy is tracked per drill type over time.'));
-
-  if (!trainState.mode) return renderDrillPicker(root);
+  if (!trainState.mode) {
+    root.appendChild(sectionTitle('Train', 'Border-zone drills with real explanations. Misses come back via spaced repetition until they stick.'));
+    root.appendChild(goalWidget());
+    renderReviewCard(root);
+    renderDrillPicker(root);
+    return;
+  }
   if (trainState.done) return renderDrillSummary(root);
   renderQuestion(root);
 }
 
+/* ---------- goal + streak widget ---------- */
+function goalWidget() {
+  var g = goalState();
+  var pct = Math.min(1, g.todayCount / g.dailyTarget);
+  var streak = currentStreak();
+  var card = el('div', { class: 'card goal-card' });
+  var row = el('div', { class: 'goal-row' }, [
+    el('div', {}, [
+      el('div', { class: 'chart-title', text: 'Today: ' + g.todayCount + ' / ' + g.dailyTarget + ' answers' }),
+      el('div', { class: 'chart-sub', text: streak > 0 ? '🔥 ' + streak + '-day streak' + (g.bestStreak > streak ? ' · best ' + g.bestStreak : ' (best!)') : 'Hit your goal to start a streak' })
+    ]),
+    el('button', {
+      class: 'btn ghost sm', text: '⚙',
+      onclick: function () {
+        var v = prompt('Daily answer goal:', String(g.dailyTarget));
+        if (v === null) return;
+        var t = parseInt(v, 10);
+        if (t > 0) { g.dailyTarget = t; saveState(); rerender(); }
+      }
+    })
+  ]);
+  card.appendChild(row);
+  card.appendChild(masteryBar(pct, ''));
+  return card;
+}
+
+/* ---------- review queue card ---------- */
+function renderReviewCard(root) {
+  var due = srsDue();
+  if (!due.length) return;
+  var card = el('div', { class: 'card review-card', onclick: function () { startReview(); } });
+  card.appendChild(el('div', { class: 'chart-title', text: '🔁 Review queue: ' + due.length + ' hand' + (due.length > 1 ? 's' : '') + ' due' }));
+  card.appendChild(el('div', { class: 'chart-sub', text: 'Hands you missed, scheduled by spaced repetition (1→3→7→14→30 days). Clear these first — this is where ranges become permanent.' }));
+  root.appendChild(card);
+}
+
+/* ---------- picker ---------- */
 function renderDrillPicker(root) {
   DRILL_MODES.forEach(function (m) {
-    var s = drillStats(m.id);
-    var s7 = drillStats(m.id, Date.now() - 7 * 864e5);
-    var card = el('div', { class: 'card drill-pick', onclick: function () { startDrill(m.id); } });
+    var card = el('div', { class: 'card drill-pick' });
     card.appendChild(el('div', { class: 'chart-title', text: m.label }));
     card.appendChild(el('div', { class: 'chart-sub', text: m.desc }));
-    card.appendChild(el('div', {
-      class: 'drill-acc',
-      text: s.n ? ('All-time ' + fmtPct(s.acc, 0) + ' over ' + s.n + ' answers' + (s7.n ? ' · last 7 days ' + fmtPct(s7.acc, 0) : '')) : 'Not attempted yet'
-    }));
+    if (m.group) {
+      card.appendChild(masteryBar(groupMastery(m.group), 'mastery'));
+    } else {
+      var s = drillStats('math');
+      card.appendChild(masteryBar(s.n ? s.acc : null, 'accuracy'));
+    }
+    var btns = el('div', { class: 'btn-row' });
+    btns.appendChild(el('button', { class: 'btn primary grow', text: '⚡ Quick (12)', onclick: function () { startDrill(m.id, 12, false); } }));
+    btns.appendChild(el('button', { class: 'btn ghost grow', text: '🏋️ Deep (30)', onclick: function () { startDrill(m.id, 30, false); } }));
+    card.appendChild(btns);
     root.appendChild(card);
   });
 }
 
-function startDrill(modeId) {
+function startDrill(modeId, length, review) {
   trainState.mode = modeId;
-  trainState.qNum = 0; trainState.right = 0; trainState.done = false; trainState.lastFeedback = null;
+  trainState.length = length;
+  trainState.review = review;
+  trainState.qNum = 0;
+  trainState.done = false;
+  trainState.results = [];
+  trainState.lastFeedback = null;
   nextQuestion();
   rerender();
 }
 
+function startReview() {
+  var due = srsDue();
+  shuffleInPlace(due);
+  trainState.reviewItems = due.slice(0, 20);
+  startDrill('review', trainState.reviewItems.length, true);
+}
+
+/* ---------- question generation ---------- */
 function nextQuestion() {
   trainState.qNum++;
-  if (trainState.qNum > trainState.total) { trainState.done = true; return; }
+  if (trainState.qNum > trainState.length) { trainState.done = true; return; }
+  if (trainState.review) {
+    var item = trainState.reviewItems[trainState.qNum - 1];
+    if (!item) { trainState.done = true; return; }
+    trainState.q = { kind: 'range', chartId: item.chartId, label: item.label, hand: comboForLabel(item.label), fromReview: true };
+    return;
+  }
   if (trainState.mode === 'math') { trainState.q = makeMathQuestion(); return; }
   var group = trainState.mode;
   var charts = chartsByGroup(group);
   if (group === 'vs3bet') charts = charts.concat(chartsByGroup('vs4bet'));
-  var compiled = charts[randInt(charts.length)];
-  // sample a concrete hand: bias toward decision-relevant hands (in-chart or near)
-  var hand = sampleHand();
-  if (Math.random() < 0.55) { // resample until in-chart ~55% of the time
-    var tries = 0;
-    while (compiled.chart[comboClass(hand[0], hand[1])] === undefined && tries < 30) { hand = sampleHand(); tries++; }
+  // adaptive: weight charts toward low mastery
+  var weights = charts.map(function (c) {
+    var m = chartMastery(c.spec.id);
+    return m === null ? 1.2 : (1.25 - m.mastery);
+  });
+  var compiled = charts[weightedPick(weights)];
+  var label;
+  if (Math.random() < 0.65) {
+    // border-zone hand: where the actual decisions live
+    var pool = interestingLabels(compiled.spec.id);
+    label = pool[randInt(pool.length)];
+  } else {
+    var h = sampleHand();
+    label = comboClass(h[0], h[1]);
   }
-  trainState.q = { kind: 'range', chartId: compiled.spec.id, hand: hand, label: comboClass(hand[0], hand[1]) };
+  trainState.q = { kind: 'range', chartId: compiled.spec.id, label: label, hand: comboForLabel(label) };
 }
 
+function weightedPick(weights) {
+  var total = 0, i;
+  for (i = 0; i < weights.length; i++) total += weights[i];
+  var r = Math.random() * total;
+  for (i = 0; i < weights.length; i++) {
+    r -= weights[i];
+    if (r <= 0) return i;
+  }
+  return weights.length - 1;
+}
+
+/* ---------- question rendering ---------- */
 function renderQuestion(root) {
   var q = trainState.q;
   var bar = el('div', { class: 'drill-bar' }, [
-    el('span', { text: 'Q' + trainState.qNum + '/' + trainState.total }),
-    el('span', { text: trainState.right + ' correct' }),
+    el('span', { text: (trainState.review ? '🔁 ' : '') + 'Q' + trainState.qNum + '/' + trainState.length }),
+    el('span', { class: 'drill-score', text: sessionScoreText() }),
     el('button', { class: 'btn ghost sm', text: 'Quit', onclick: function () { trainState.mode = null; rerender(); } })
   ]);
   root.appendChild(bar);
+  root.appendChild(el('div', { class: 'drill-progress' }, [
+    el('div', { class: 'drill-progress-fill', style: 'width:' + (100 * (trainState.qNum - 1) / trainState.length) + '%' })
+  ]));
 
-  if (trainState.lastFeedback) {
-    root.appendChild(trainState.lastFeedback);
-  }
+  if (trainState.lastFeedback) root.appendChild(trainState.lastFeedback);
 
   var card = el('div', { class: 'card drill-q' });
   if (q.kind === 'range') {
     var compiled = getChart(q.chartId);
     var spec = compiled.spec;
-    var situation = '';
-    if (spec.group === 'rfi') situation = 'Folded to you at ' + spec.pos + '. (' + (spec.title.indexOf('6-max') >= 0 ? '6-max' : '9-max') + ')';
-    else if (spec.group === 'vsrfi') situation = 'You are in the ' + spec.pos + '. ' + spec.vs + ' in front of you.';
-    else if (spec.group === 'vs3bet') situation = spec.title + '.';
-    else if (spec.group === 'vs4bet') situation = 'You 3-bet and face a 4-bet.';
-    else if (spec.group === 'pushfold') situation = 'MTT, ' + spec.stack + 'bb effective, you are ' + spec.pos + '. Folded to you.';
-    card.appendChild(el('div', { class: 'chart-sub', text: situation }));
+    card.appendChild(tableScene(sceneForSpec(spec)));
+    var situation = spec.group === 'pushfold'
+      ? 'MTT · ' + spec.stack + 'bb effective · folded to you'
+      : (spec.sub || '');
+    card.appendChild(el('div', { class: 'chart-sub center-text', text: spec.title + (situation ? ' — ' + situation : '') }));
     var hd = el('div', { class: 'drill-hand' });
     hd.appendChild(cardChip(q.hand[0], true));
     hd.appendChild(cardChip(q.hand[1], true));
@@ -107,56 +193,76 @@ function renderQuestion(root) {
     if (q.detail) card.appendChild(el('div', { class: 'drill-mathline', text: q.detail }));
     var row = el('div', { class: 'btn-row wrap' });
     q.options.forEach(function (opt, idx) {
-      row.appendChild(el('button', {
-        class: 'btn answer neutral',
-        text: opt,
-        onclick: function () { gradeMath(idx); }
-      }));
+      row.appendChild(el('button', { class: 'btn answer neutral', text: opt, onclick: function () { gradeMath(idx); } }));
     });
     card.appendChild(row);
   }
   root.appendChild(card);
 }
 
+function sessionScoreText() {
+  if (!trainState.results.length) return '';
+  var s = 0;
+  trainState.results.forEach(function (r) { s += r.credit; });
+  return Math.round(100 * s / trainState.results.length) + '%';
+}
+
+/* ---------- grading ---------- */
 function gradeRange(answer) {
   var q = trainState.q;
-  var good = correctAnswers(q.chartId, q.label);
-  var correct = good.indexOf(answer) >= 0;
-  if (correct) trainState.right++;
-  STATE.drills.push({ ts: Date.now(), mode: trainState.mode, chartId: q.chartId, label: q.label, answer: answer, correct: correct });
+  var accepted = correctAnswers(q.chartId, q.label);
+  var exp = explainAnswer(q.chartId, q.label, answer, accepted);
+  var credit = exp.correct ? 1 : SEVERITY_META[exp.severity].credit;
+
+  // spaced repetition bookkeeping
+  if (!exp.correct) srsRecordMiss(q.chartId, q.label);
+  else if (q.fromReview) srsRecordPass(q.chartId, q.label);
+
+  recordAnswerForGoal();
+  STATE.drills.push({
+    ts: Date.now(), mode: trainState.review ? 'review' : trainState.mode,
+    chartId: q.chartId, label: q.label, answer: answer,
+    correct: exp.correct, severity: exp.severity, credit: credit
+  });
   saveState();
-  trainState.lastFeedback = buildRangeFeedback(q, answer, good, correct);
+
+  trainState.results.push({ label: q.label, chartId: q.chartId, correct: exp.correct, severity: exp.severity, credit: credit });
+  trainState.lastFeedback = buildFeedback(q, answer, accepted, exp);
   nextQuestion();
   rerender();
 }
 
-function buildRangeFeedback(q, answer, good, correct) {
+function buildFeedback(q, answer, accepted, exp) {
   var compiled = getChart(q.chartId);
-  var act = compiled.chart[q.label];
-  var box = el('div', { class: 'card feedback ' + (correct ? 'good' : 'bad') });
-  var verdict = correct ? '✓ ' + q.label + ' — correct' : '✗ ' + q.label + ' — chart says: ' + describeAnswer(q, good);
-  box.appendChild(el('div', { class: 'fb-verdict', text: verdict }));
-  if (act === 'mixed') {
-    box.appendChild(el('div', { class: 'fb-note', text: 'This hand is a mixed-frequency play — EV is close between actions, so several answers are accepted.' }));
+  var cls = exp.correct ? 'good' : exp.severity === 'close' ? 'closecall' : 'bad';
+  var box = el('div', { class: 'card feedback ' + cls });
+  var head;
+  if (exp.correct) {
+    head = '✓ ' + q.label + ' — correct';
+  } else {
+    var names = accepted.map(function (a) { return ACTION_META[a].label; }).join(' or ');
+    var sev = SEVERITY_META[exp.severity];
+    head = (exp.severity === 'close' ? '≈ ' : exp.severity === 'blunder' ? '✗✗ ' : '✗ ') +
+      sev.label + ' — chart says ' + names;
   }
-  if (!correct) {
+  box.appendChild(el('div', { class: 'fb-verdict', text: head }));
+  if (!exp.correct) box.appendChild(el('div', { class: 'fb-sev ' + SEVERITY_META[exp.severity].cls, text: SEVERITY_META[exp.severity].blurb }));
+  box.appendChild(el('div', { class: 'fb-why', text: exp.text }));
+  if (!exp.correct) {
     var details = el('details', {}, [el('summary', { text: 'Show chart: ' + compiled.spec.title })]);
     details.appendChild(renderHandGrid(compiled, q.label));
     details.appendChild(renderChartLegend(compiled));
     box.appendChild(details);
+    box.appendChild(el('div', { class: 'fb-note', text: '→ Added to your review queue.' }));
   }
   return box;
 }
-function describeAnswer(q, good) {
-  var names = good.map(function (a) { return ACTION_META[a].label; });
-  return names.join(' or ');
-}
 
-/* ---------- math questions ---------- */
+/* ---------- math questions (count toward the daily goal too) ---------- */
 function makeMathQuestion() {
   var kinds = ['potodds', 'mdf', 'be', 'outs'];
   var kind = kinds[randInt(kinds.length)];
-  var pot = (randInt(16) + 4) * 10;     // 40..190
+  var pot = (randInt(16) + 4) * 10;
   var betChoices = [0.33, 0.5, 0.66, 0.75, 1, 1.25];
   var bet = Math.round(pot * betChoices[randInt(betChoices.length)]);
   var q = { kind: 'math', mathKind: kind };
@@ -166,7 +272,7 @@ function makeMathQuestion() {
     detail = 'call ÷ (pot + bet + call)';
     answer = bet / (pot + bet + bet);
   } else if (kind === 'mdf') {
-    prompt = 'Villain bets ' + bet + ' into ' + pot + '. What is your Minimum Defense Frequency (how much of your range must continue)?';
+    prompt = 'Villain bets ' + bet + ' into ' + pot + '. What is your Minimum Defense Frequency?';
     detail = 'MDF = pot ÷ (pot + bet)';
     answer = pot / (pot + bet);
   } else if (kind === 'be') {
@@ -178,11 +284,10 @@ function makeMathQuestion() {
     var outs = outsOpts[randInt(outsOpts.length)];
     var street = Math.random() < 0.5 ? 'flop' : 'turn';
     prompt = 'You have ' + outs + ' outs on the ' + street + '. Chance to improve by the river?';
-    detail = street === 'flop' ? 'two cards to come' : 'one card to come';
+    detail = street === 'flop' ? 'two cards to come (Rule of 4)' : 'one card to come (Rule of 2)';
     answer = PokerMath.outsToEquity(outs, street);
   }
   q.prompt = prompt; q.detail = detail;
-  // build 4 options around the answer
   var correctPct = Math.round(answer * 100);
   var opts = [correctPct];
   var deltas = [-12, -7, -4, 4, 7, 12, 18];
@@ -200,9 +305,10 @@ function makeMathQuestion() {
 function gradeMath(idx) {
   var q = trainState.q;
   var correct = idx === q.correctIdx;
-  if (correct) trainState.right++;
-  STATE.drills.push({ ts: Date.now(), mode: 'math', chartId: q.mathKind, label: '', answer: q.options[idx], correct: correct });
+  recordAnswerForGoal();
+  STATE.drills.push({ ts: Date.now(), mode: 'math', chartId: q.mathKind, label: '', answer: q.options[idx], correct: correct, credit: correct ? 1 : 0 });
   saveState();
+  trainState.results.push({ label: q.mathKind, chartId: 'math', correct: correct, severity: correct ? null : 'mistake', credit: correct ? 1 : 0 });
   var box = el('div', { class: 'card feedback ' + (correct ? 'good' : 'bad') });
   box.appendChild(el('div', { class: 'fb-verdict', text: (correct ? '✓ Correct — ' : '✗ Answer: ' + q.options[q.correctIdx] + ' — ') + q.explain }));
   trainState.lastFeedback = box;
@@ -210,14 +316,57 @@ function gradeMath(idx) {
   rerender();
 }
 
+/* ---------- summary ---------- */
+function gradeLetter(pct) {
+  return pct >= 0.97 ? 'A+' : pct >= 0.9 ? 'A' : pct >= 0.8 ? 'B' : pct >= 0.65 ? 'C' : pct >= 0.5 ? 'D' : 'F';
+}
+
 function renderDrillSummary(root) {
-  var acc = trainState.right / trainState.total;
+  var rs = trainState.results;
+  var score = 0, perfect = 0, close = 0, mistakes = 0, blunders = 0;
+  rs.forEach(function (r) {
+    score += r.credit;
+    if (r.correct) perfect++;
+    else if (r.severity === 'close') close++;
+    else if (r.severity === 'blunder') blunders++;
+    else mistakes++;
+  });
+  var pct = rs.length ? score / rs.length : 0;
   var card = el('div', { class: 'card center' });
-  card.appendChild(el('div', { class: 'big-score', text: trainState.right + ' / ' + trainState.total }));
-  card.appendChild(el('div', { class: 'chart-sub', text: acc >= 0.9 ? 'Crushing it.' : acc >= 0.7 ? 'Solid — keep drilling the misses.' : 'The charts disagree. Study tab, then run it back.' }));
+  card.appendChild(el('div', { class: 'grade-letter', text: gradeLetter(pct) }));
+  card.appendChild(el('div', { class: 'big-score sm', text: Math.round(pct * 100) + '%' }));
+  card.appendChild(el('div', { class: 'chart-sub', text: 'severity-weighted: close calls cost half, blunders cost full' }));
+  var breakdown = el('div', { class: 'sum-breakdown' });
+  breakdown.appendChild(sumPill('✓ ' + perfect, 'good'));
+  if (close) breakdown.appendChild(sumPill('≈ ' + close + ' close', 'closep'));
+  if (mistakes) breakdown.appendChild(sumPill('✗ ' + mistakes + ' mistake' + (mistakes > 1 ? 's' : ''), 'bad'));
+  if (blunders) breakdown.appendChild(sumPill('✗✗ ' + blunders + ' blunder' + (blunders > 1 ? 's' : ''), 'worst'));
+  card.appendChild(breakdown);
+
+  var misses = rs.filter(function (r) { return !r.correct && r.chartId !== 'math'; });
+  if (misses.length) {
+    card.appendChild(el('div', { class: 'lab', text: 'What to study' }));
+    misses.slice(0, 6).forEach(function (m) {
+      var c = getChart(m.chartId);
+      card.appendChild(el('div', { class: 'miss-row', text: m.label + ' — ' + (c ? c.spec.title : m.chartId) + (m.severity === 'blunder' ? '  ⚠ blunder' : '') }));
+    });
+    card.appendChild(el('p', { class: 'note', text: 'Misses are queued for spaced review (1→3→7→14→30 days). Clear the queue daily and these become automatic.' }));
+  }
+
+  var g = goalState();
+  if (g.todayCount >= g.dailyTarget && currentStreak() > 0) {
+    card.appendChild(el('div', { class: 'fb-verdict good', text: '🔥 Daily goal hit — streak: ' + currentStreak() }));
+  }
+
   var row = el('div', { class: 'btn-row' });
-  row.appendChild(el('button', { class: 'btn primary', text: 'Again', onclick: function () { startDrill(trainState.mode); } }));
-  row.appendChild(el('button', { class: 'btn ghost', text: 'All drills', onclick: function () { trainState.mode = null; rerender(); } }));
+  row.appendChild(el('button', { class: 'btn primary grow', text: 'Again', onclick: function () { trainState.review ? startReview() : startDrill(trainState.mode, trainState.length, false); } }));
+  var due = srsDue();
+  if (due.length && !trainState.review) {
+    row.appendChild(el('button', { class: 'btn accent grow', text: '🔁 Review ' + due.length, onclick: function () { startReview(); } }));
+  }
+  row.appendChild(el('button', { class: 'btn ghost', text: 'Done', onclick: function () { trainState.mode = null; rerender(); } }));
   card.appendChild(row);
   root.appendChild(card);
 }
+
+function sumPill(text, cls) { return el('span', { class: 'sum-pill ' + cls, text: text }); }

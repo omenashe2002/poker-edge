@@ -16,6 +16,7 @@ var DEFAULT_STATE = {
   hands: [],        // logged hands
   drills: [],       // drill attempts
   srs: {},          // spaced repetition: "chartId|label" -> {level, due, misses}
+  exams: [],        // exam history: {ts, score, grade}
   goals: { dailyTarget: 30, streak: 0, bestStreak: 0, lastGoalDay: '', day: '', todayCount: 0 },
   lessons: {}       // lessonId -> {done, ts}
 };
@@ -199,6 +200,43 @@ function groupMastery(group) {
     if (m) { sum += m.mastery; n++; }
   });
   return n ? sum / n : null;
+}
+
+/* ---- EDGE Rating: one number to push ----
+   1000 base + up to 600 mastery + 200 course + 150 exams + 50 streak. */
+var RATING_TIERS = [
+  [1150, 'Fish'], [1300, 'Grinder'], [1450, 'Reg'], [1600, 'Crusher'], [1750, 'Elite'], [9999, 'Apex']
+];
+function edgeRating() {
+  var groups = ['rfi', 'vsrfi', 'vs3bet', 'pushfold'];
+  var ms = [], i;
+  for (i = 0; i < groups.length; i++) {
+    var g = groupMastery(groups[i]);
+    if (g !== null) ms.push(g);
+  }
+  var mathS = drillStats('math');
+  if (mathS.n >= 10) ms.push(mathS.acc);
+  var mastery = 0;
+  if (ms.length) {
+    for (i = 0; i < ms.length; i++) mastery += ms[i];
+    mastery = (mastery / ms.length) * (Math.min(ms.length, 5) / 5); // breadth matters
+  }
+  var done = 0;
+  for (var k in STATE.lessons) if (STATE.lessons[k] && STATE.lessons[k].done) done++;
+  var lessonPct = LESSONS && LESSONS.length ? done / LESSONS.length : 0;
+  var examAvg = 0;
+  if (STATE.exams.length) {
+    var last = STATE.exams.slice(-3);
+    for (i = 0; i < last.length; i++) examAvg += last[i].score;
+    examAvg /= last.length;
+  }
+  var streakBonus = Math.min(50, currentStreak() * 5);
+  var rating = Math.round(1000 + 600 * mastery + 200 * lessonPct + 150 * examAvg + streakBonus);
+  var tier = 'Fish';
+  for (i = 0; i < RATING_TIERS.length; i++) {
+    if (rating < RATING_TIERS[i][0]) { tier = RATING_TIERS[i][1]; break; }
+  }
+  return { rating: rating, tier: tier };
 }
 
 if (typeof module !== 'undefined') {

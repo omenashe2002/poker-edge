@@ -128,9 +128,40 @@ function run(w) {
     w.checkLessonComplete(w.LESSONS[0]);
     w.rerender();
     ok(w.STATE.lessons[w.LESSONS[0].id] && w.STATE.lessons[w.LESSONS[0].id].done === true, 'lesson marked complete');
+    ok(w.LESSONS.length === 26 && w.COURSE_MODULES.length === 5, 'course has 26 lessons in 5 modules');
+    // glossary term links inside the lesson
+    ok(doc.querySelectorAll('.term').length > 0, 'glossary terms auto-linked in lesson');
+    doc.querySelector('.term').click();
+    ok(!!doc.getElementById('gloss-sheet'), 'tapping a term opens the definition sheet');
+    w.closeGloss();
     w.studyState.lessonId = null;
 
+    // glossary tab
+    w.studyState.tab = 'gloss'; w.rerender();
+    ok(doc.querySelectorAll('.gloss-card').length >= 50, 'glossary lists 50+ terms');
+    ok(doc.body.textContent.indexOf('Raise First In') >= 0, 'RFI definition present');
+
+    // the exam: 25 interleaved questions, answered correctly
+    w.navTo('train');
+    ok(doc.body.textContent.indexOf('The Exam') >= 0, 'exam card renders');
+    ok(doc.body.textContent.indexOf('EDGE rating') >= 0, 'rating row renders');
+    ok(doc.body.textContent.indexOf('Pressure mode') >= 0, 'pressure toggle renders');
+    w.startExam();
+    var eGuard = 0;
+    while (!w.trainState.done && eGuard++ < 40) {
+      var eq = w.trainState.q;
+      if (eq.kind === 'range') w.gradeRange(w.correctAnswers(eq.chartId, eq.label)[0]);
+      else w.gradeMath(eq.correctIdx);
+    }
+    ok(w.trainState.done === true, 'exam completes (25 questions)');
+    ok(w.STATE.exams.length === 1, 'exam recorded');
+    ok(w.STATE.exams[0].grade === 'A+', 'perfect exam grades A+ (got ' + w.STATE.exams[0].grade + ')');
+    var er = w.edgeRating();
+    ok(er.rating >= 1000 && er.rating <= 2000 && typeof er.tier === 'string', 'EDGE rating computes: ' + er.rating + ' ' + er.tier);
+    w.trainState.mode = null;
+
     // chart page: border summary + tappable cell info
+    w.navTo('study');
     w.studyState.tab = 'rfi'; w.studyState.chartId = 'rfi9-utg'; w.rerender();
     ok(doc.body.textContent.indexOf('Memorize the borders') >= 0, 'border summary renders');
     var cells = doc.querySelectorAll('.cell.tappable');

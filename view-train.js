@@ -16,8 +16,14 @@ var DRILL_MODES = [
 
 var trainState = {
   mode: null, length: 12, q: null, qNum: 0, done: false,
-  results: [], lastFeedback: null, review: false, reviewItems: []
+  results: [], lastFeedback: null, review: false, reviewItems: [],
+  examQs: null, examSaved: false,
+  pressure: localStorage.getItem('edge-pressure') === '1'
 };
+var pressureTimer = null;
+function clearPressure() {
+  if (pressureTimer) { clearInterval(pressureTimer); pressureTimer = null; }
+}
 
 function renderTrain(root) {
   clear(root);
@@ -25,6 +31,7 @@ function renderTrain(root) {
     root.appendChild(sectionTitle('Train', 'Border-zone drills with real explanations. Misses come back via spaced repetition until they stick.'));
     root.appendChild(goalWidget());
     renderReviewCard(root);
+    renderExamCard(root);
     renderDrillPicker(root);
     return;
   }
@@ -55,7 +62,46 @@ function goalWidget() {
   ]);
   card.appendChild(row);
   card.appendChild(masteryBar(pct, ''));
+  var er = edgeRating();
+  card.appendChild(el('div', { class: 'rating-row' }, [
+    el('span', { class: 'rating-num', text: er.rating }),
+    el('span', { class: 'rating-tier', text: er.tier }),
+    el('span', { class: 'rating-hint', text: 'EDGE rating \u00b7 mastery + course + exams' })
+  ]));
   return card;
+}
+
+/* ---------- the Exam: 25 interleaved questions ---------- */
+function renderExamCard(root) {
+  var card = el('div', { class: 'card exam-card' });
+  var last = STATE.exams.length ? STATE.exams[STATE.exams.length - 1] : null;
+  card.appendChild(el('div', { class: 'chart-title', text: '\ud83c\udf93 The Exam' }));
+  card.appendChild(el('div', { class: 'chart-sub', text: '25 questions, every topic interleaved \u2014 the honest benchmark. ' + (last ? 'Last: ' + last.grade + ' (' + Math.round(last.score * 100) + '%)' : 'Never taken.') }));
+  if (STATE.exams.length > 1) {
+    var hist = STATE.exams.slice(-6).map(function (e) { return e.grade; }).join(' \u00b7 ');
+    card.appendChild(el('div', { class: 'exam-hist', text: 'History: ' + hist }));
+  }
+  card.appendChild(el('button', { class: 'btn primary block', text: 'Sit the exam', onclick: startExam }));
+  root.appendChild(card);
+}
+
+function startExam() {
+  var qs = [];
+  ['rfi', 'vsrfi', 'vs3bet', 'pushfold'].forEach(function (group) {
+    var charts = chartsByGroup(group);
+    if (group === 'vs3bet') charts = charts.concat(chartsByGroup('vs4bet'));
+    for (var i = 0; i < 5; i++) {
+      var compiled = charts[randInt(charts.length)];
+      var pool = interestingLabels(compiled.spec.id);
+      var label = Math.random() < 0.7 ? pool[randInt(pool.length)] : comboClass.apply(null, sampleHand());
+      qs.push({ kind: 'range', chartId: compiled.spec.id, label: label, hand: comboForLabel(label) });
+    }
+  });
+  for (var m = 0; m < 5; m++) qs.push(makeMathQuestion());
+  shuffleInPlace(qs);
+  trainState.examQs = qs;
+  trainState.examSaved = false;
+  startDrill('exam', qs.length, false);
 }
 
 /* ---------- review queue card ---------- */
@@ -86,6 +132,24 @@ function renderDrillPicker(root) {
     card.appendChild(btns);
     root.appendChild(card);
   });
+  // pressure mode toggle
+  var pr = el('div', { class: 'card pressure-card' });
+  pr.appendChild(el('div', { class: 'panel-head' }, [
+    el('div', {}, [
+      el('div', { class: 'chart-title', text: '⏱ Pressure mode' }),
+      el('div', { class: 'chart-sub', text: '10-second shot clock per question. Stakes sharpen focus — timeouts count as misses.' })
+    ]),
+    el('button', {
+      class: 'btn sm ' + (trainState.pressure ? 'primary' : 'ghost'),
+      text: trainState.pressure ? 'ON' : 'OFF',
+      onclick: function () {
+        trainState.pressure = !trainState.pressure;
+        localStorage.setItem('edge-pressure', trainState.pressure ? '1' : '0');
+        rerender();
+      }
+    })
+  ]));
+  root.appendChild(pr);
 }
 
 function startDrill(modeId, length, review) {
@@ -109,8 +173,25 @@ function startReview() {
 
 /* ---------- question generation ---------- */
 function nextQuestion() {
+  clearPressure();
   trainState.qNum++;
-  if (trainState.qNum > trainState.length) { trainState.done = true; return; }
+  if (trainState.qNum > trainState.length) {
+    trainState.done = true;
+    if (trainState.mode === 'exam' && !trainState.examSaved) {
+      var s = 0;
+      trainState.results.forEach(function (r) { s += r.credit; });
+      var pct = trainState.results.length ? s / trainState.results.length : 0;
+      STATE.exams.push({ ts: Date.now(), score: pct, grade: gradeLetter(pct) });
+      if (STATE.exams.length > 40) STATE.exams = STATE.exams.slice(-30);
+      trainState.examSaved = true;
+      saveState();
+    }
+    return;
+  }
+  if (trainState.mode === 'exam') {
+    trainState.q = trainState.examQs[trainState.qNum - 1];
+    return;
+  }
   if (trainState.review) {
     var item = trainState.reviewItems[trainState.qNum - 1];
     if (!item) { trainState.done = true; return; }
@@ -166,6 +247,24 @@ function renderQuestion(root) {
   if (trainState.lastFeedback) root.appendChild(trainState.lastFeedback);
 
   var card = el('div', { class: 'card drill-q' });
+  if (trainState.pressure) {
+    var pbar = el('div', { class: 'pressure-bar' }, [el('div', { class: 'pressure-fill' })]);
+    card.appendChild(pbar);
+    clearPressure();
+    var deadline = Date.now() + 10000;
+    var fill = pbar.firstChild;
+    pressureTimer = setInterval(function () {
+      var left = deadline - Date.now();
+      if (left <= 0) {
+        clearPressure();
+        if (trainState.q && trainState.q.kind === 'range') gradeRange('__timeout');
+        else gradeMath(-1);
+        return;
+      }
+      fill.style.width = (100 * left / 10000) + '%';
+      if (left < 3000) fill.className = 'pressure-fill hot';
+    }, 100);
+  }
   if (q.kind === 'range') {
     var compiled = getChart(q.chartId);
     var spec = compiled.spec;
@@ -209,6 +308,7 @@ function sessionScoreText() {
 
 /* ---------- grading ---------- */
 function gradeRange(answer) {
+  clearPressure();
   var q = trainState.q;
   var accepted = correctAnswers(q.chartId, q.label);
   var exp = explainAnswer(q.chartId, q.label, answer, accepted);
@@ -242,8 +342,8 @@ function buildFeedback(q, answer, accepted, exp) {
   } else {
     var names = accepted.map(function (a) { return ACTION_META[a].label; }).join(' or ');
     var sev = SEVERITY_META[exp.severity];
-    head = (exp.severity === 'close' ? '≈ ' : exp.severity === 'blunder' ? '✗✗ ' : '✗ ') +
-      sev.label + ' — chart says ' + names;
+    var prefix = answer === '__timeout' ? '⏱ Time! ' : (exp.severity === 'close' ? '≈ ' : exp.severity === 'blunder' ? '✗✗ ' : '✗ ');
+    head = prefix + sev.label + ' — chart says ' + names;
   }
   box.appendChild(el('div', { class: 'fb-verdict', text: head }));
   if (!exp.correct) box.appendChild(el('div', { class: 'fb-sev ' + SEVERITY_META[exp.severity].cls, text: SEVERITY_META[exp.severity].blurb }));
@@ -303,10 +403,11 @@ function makeMathQuestion() {
 }
 
 function gradeMath(idx) {
+  clearPressure();
   var q = trainState.q;
   var correct = idx === q.correctIdx;
   recordAnswerForGoal();
-  STATE.drills.push({ ts: Date.now(), mode: 'math', chartId: q.mathKind, label: '', answer: q.options[idx], correct: correct, credit: correct ? 1 : 0 });
+  STATE.drills.push({ ts: Date.now(), mode: 'math', chartId: q.mathKind, label: '', answer: idx >= 0 ? q.options[idx] : 'timeout', correct: correct, credit: correct ? 1 : 0 });
   saveState();
   trainState.results.push({ label: q.mathKind, chartId: 'math', correct: correct, severity: correct ? null : 'mistake', credit: correct ? 1 : 0 });
   var box = el('div', { class: 'card feedback ' + (correct ? 'good' : 'bad') });
@@ -359,7 +460,7 @@ function renderDrillSummary(root) {
   }
 
   var row = el('div', { class: 'btn-row' });
-  row.appendChild(el('button', { class: 'btn primary grow', text: 'Again', onclick: function () { trainState.review ? startReview() : startDrill(trainState.mode, trainState.length, false); } }));
+  row.appendChild(el('button', { class: 'btn primary grow', text: 'Again', onclick: function () { trainState.review ? startReview() : (trainState.mode === 'exam' ? startExam() : startDrill(trainState.mode, trainState.length, false)); } }));
   var due = srsDue();
   if (due.length && !trainState.review) {
     row.appendChild(el('button', { class: 'btn accent grow', text: '🔁 Review ' + due.length, onclick: function () { startReview(); } }));

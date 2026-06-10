@@ -1,15 +1,16 @@
 /* ============================================================
-   EDGE — view-study.js  (v2)
-   Course (lessons + quizzes), interactive GTO charts with
-   border summaries and tap-a-cell explanations, live cheatsheet,
-   player-type field guide.
+   EDGE — view-study.js  (v3)
+   Course in modules, glossary with auto-linked terms, lesson
+   reader (objectives → body → takeaways → checkpoint),
+   interactive charts with borders, cheatsheet, player types.
    ============================================================ */
 'use strict';
 
-var studyState = { tab: 'course', chartId: 'rfi9-lj', cellInfo: null, lessonId: null, quizState: {} };
+var studyState = { tab: 'course', chartId: 'rfi9-lj', cellInfo: null, lessonId: null, quizState: {}, glossQuery: '' };
 
 var STUDY_TABS = [
   { id: 'course', label: '🎓 Course' },
+  { id: 'gloss', label: '📖 Glossary' },
   { id: 'rfi', label: 'Open (RFI)' },
   { id: 'vsrfi', label: 'Defend' },
   { id: 'vs3bet', label: 'vs 3-Bet' },
@@ -20,7 +21,7 @@ var STUDY_TABS = [
 
 function renderStudy(root) {
   clear(root);
-  root.appendChild(sectionTitle('Study', 'Lessons for the logic, charts for the lines. Tap any grid cell to learn why it plays.'));
+  root.appendChild(sectionTitle('Study', 'The course teaches the why; the charts hold the what. Tap any highlighted term or grid cell for an instant explanation.'));
 
   var tabs = el('div', { class: 'pill-row' });
   STUDY_TABS.forEach(function (t) {
@@ -33,9 +34,264 @@ function renderStudy(root) {
   root.appendChild(tabs);
 
   if (studyState.tab === 'course') return renderCourse(root);
+  if (studyState.tab === 'gloss') return renderGlossary(root);
   if (studyState.tab === 'cheat') return renderCheatsheet(root);
   if (studyState.tab === 'types') return renderTypes(root);
+  renderCharts(root);
+}
 
+/* ---------- glossary: term linking ---------- */
+var GLOSS_RE = null;
+function glossRe() {
+  if (GLOSS_RE) return GLOSS_RE;
+  var parts = GLOSSARY_MATCHES.map(function (gm) {
+    return gm.m.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  });
+  GLOSS_RE = new RegExp('\\b(' + parts.join('|') + ')(?![\\w-])', 'gi');
+  return GLOSS_RE;
+}
+function glossIndexForMatch(matched) {
+  var lower = matched.toLowerCase();
+  for (var i = 0; i < GLOSSARY_MATCHES.length; i++) {
+    if (GLOSSARY_MATCHES[i].m === lower) return GLOSSARY_MATCHES[i].i;
+  }
+  return -1;
+}
+/* paragraph with tappable glossary terms (first hit per term, max 8/para) */
+function richPara(text, cls) {
+  var p = el('p', { class: cls || 'lesson-p' });
+  var re = glossRe();
+  re.lastIndex = 0;
+  var seen = {}, links = 0, last = 0, m;
+  while ((m = re.exec(text)) !== null && links < 8) {
+    var gi = glossIndexForMatch(m[1]);
+    if (gi < 0 || seen[gi]) continue;
+    seen[gi] = true;
+    links++;
+    if (m.index > last) p.appendChild(txt(text.slice(last, m.index)));
+    (function (idx, word) {
+      p.appendChild(el('span', { class: 'term', text: word, onclick: function (e) { e.stopPropagation(); showGloss(idx); } }));
+    })(gi, m[1]);
+    last = m.index + m[1].length;
+  }
+  p.appendChild(txt(text.slice(last)));
+  return p;
+}
+
+/* bottom-sheet definition */
+function showGloss(idx) {
+  var g = GLOSSARY[idx];
+  var old = document.getElementById('gloss-sheet');
+  if (old) old.parentNode.removeChild(old);
+  var sheet = el('div', { id: 'gloss-sheet', class: 'gloss-sheet' }, [
+    el('div', { class: 'gloss-grab' }),
+    el('div', { class: 'panel-head' }, [
+      el('div', {}, [
+        el('div', { class: 'chart-title', text: g.t }),
+        el('div', { class: 'chart-sub', text: g.full })
+      ]),
+      el('button', { class: 'btn ghost sm', text: '✕', onclick: closeGloss })
+    ]),
+    el('p', { class: 'gloss-def', text: g.d }),
+    el('button', {
+      class: 'btn ghost sm', text: 'Open full glossary →',
+      onclick: function () { closeGloss(); studyState.tab = 'gloss'; studyState.lessonId = null; navTo('study'); }
+    })
+  ]);
+  sheet.addEventListener('click', function (e) { e.stopPropagation(); });
+  document.body.appendChild(sheet);
+  setTimeout(function () { sheet.className = 'gloss-sheet open'; }, 10);
+  setTimeout(function () { document.addEventListener('click', closeGloss, { once: true }); }, 50);
+}
+function closeGloss() {
+  var s = document.getElementById('gloss-sheet');
+  if (!s) return;
+  s.className = 'gloss-sheet';
+  setTimeout(function () { if (s.parentNode) s.parentNode.removeChild(s); }, 250);
+}
+
+function renderGlossary(root) {
+  var search = el('input', { class: 'input', placeholder: 'Search: RFI, mixed, MDF, blocker…', value: studyState.glossQuery });
+  search.addEventListener('input', function () {
+    studyState.glossQuery = search.value;
+    renderGlossList(listBox);
+  });
+  root.appendChild(search);
+  var listBox = el('div');
+  root.appendChild(listBox);
+  renderGlossList(listBox);
+}
+function renderGlossList(box) {
+  clear(box);
+  var items = studyState.glossQuery ? findGlossary(studyState.glossQuery) : GLOSSARY;
+  if (!items.length) box.appendChild(el('p', { class: 'hint', text: 'No matches — try a shorter query.' }));
+  items.forEach(function (g) {
+    var card = el('div', { class: 'card gloss-card' });
+    card.appendChild(el('div', { class: 'gloss-head' }, [
+      el('span', { class: 'gloss-term', text: g.t }),
+      el('span', { class: 'gloss-full', text: g.full })
+    ]));
+    card.appendChild(el('p', { class: 'gloss-def', text: g.d }));
+    box.appendChild(card);
+  });
+}
+
+/* ---------- the course (modules) ---------- */
+function lessonDone(id) { return STATE.lessons[id] && STATE.lessons[id].done; }
+
+function renderCourse(root) {
+  if (studyState.lessonId) return renderLesson(root, studyState.lessonId);
+
+  var done = 0;
+  LESSONS.forEach(function (L) { if (lessonDone(L.id)) done++; });
+  var head = el('div', { class: 'card' });
+  head.appendChild(el('div', { class: 'chart-title', text: 'The EDGE Course' }));
+  head.appendChild(el('div', { class: 'chart-sub', text: done + '/' + LESSONS.length + ' lessons complete · 5 modules · built on retrieval, spacing, and interleaving — the highest-evidence learning techniques known' }));
+  head.appendChild(masteryBar(LESSONS.length ? done / LESSONS.length : 0, ''));
+  // continue card
+  var next = null;
+  for (var i = 0; i < LESSONS.length; i++) if (!lessonDone(LESSONS[i].id)) { next = LESSONS[i]; break; }
+  if (next && done > 0) {
+    head.appendChild(el('button', {
+      class: 'btn primary block', text: '▶ Continue: ' + next.title,
+      onclick: function () { studyState.lessonId = next.id; studyState.quizState = {}; rerender(); }
+    }));
+  }
+  root.appendChild(head);
+
+  COURSE_MODULES.forEach(function (mod, mi) {
+    var lessons = lessonsByModule(mod.id);
+    var mdone = lessons.filter(function (L) { return lessonDone(L.id); }).length;
+    var card = el('div', { class: 'card module-card' });
+    card.appendChild(el('div', { class: 'module-head' }, [
+      el('div', {}, [
+        el('div', { class: 'module-kicker', text: 'MODULE ' + (mi + 1) }),
+        el('div', { class: 'chart-title', text: mod.title }),
+        el('div', { class: 'chart-sub', text: mod.sub })
+      ]),
+      el('span', { class: 'module-count' + (mdone === lessons.length ? ' done' : ''), text: mdone + '/' + lessons.length })
+    ]));
+    lessons.forEach(function (L) {
+      var idx = LESSONS.indexOf(L);
+      card.appendChild(el('div', {
+        class: 'lesson-line' + (lessonDone(L.id) ? ' done' : ''),
+        onclick: function () { studyState.lessonId = L.id; studyState.quizState = {}; rerender(); }
+      }, [
+        el('span', { class: 'lesson-icon sm', text: L.icon }),
+        el('span', { class: 'lesson-line-title', text: (idx + 1) + '. ' + L.title }),
+        el('span', { class: 'lesson-line-meta', text: L.minutes + 'm' }),
+        el('span', { class: 'lesson-check', text: lessonDone(L.id) ? '✓' : '›' })
+      ]));
+    });
+    root.appendChild(card);
+  });
+}
+
+function renderLesson(root, id) {
+  var L = null, idx = -1;
+  LESSONS.forEach(function (x, i) { if (x.id === id) { L = x; idx = i; } });
+  if (!L) { studyState.lessonId = null; return renderCourse(root); }
+  var modIdx = COURSE_MODULES.findIndex ? COURSE_MODULES.findIndex(function (m) { return m.id === L.module; }) : 0;
+
+  var card = el('div', { class: 'card lesson-reader' });
+  card.appendChild(el('div', { class: 'panel-head' }, [
+    el('div', {}, [
+      el('div', { class: 'module-kicker', text: 'MODULE ' + (modIdx + 1) + ' · LESSON ' + (idx + 1) + '/' + LESSONS.length }),
+      el('div', { class: 'lesson-title', text: L.icon + ' ' + L.title })
+    ]),
+    el('button', { class: 'btn ghost sm', text: '✕', onclick: function () { studyState.lessonId = null; rerender(); } })
+  ]));
+
+  if (L.obj && L.obj.length) {
+    var ob = el('div', { class: 'obj-box' });
+    ob.appendChild(el('div', { class: 'exploit-h', text: 'You will be able to' }));
+    var ul = el('ul', { class: 'tips' });
+    L.obj.forEach(function (o) { ul.appendChild(el('li', { text: o })); });
+    ob.appendChild(ul);
+    card.appendChild(ob);
+  }
+
+  L.body.forEach(function (p) { card.appendChild(richPara(p)); });
+
+  if (L.take && L.take.length) {
+    var tk = el('div', { class: 'take-box' });
+    tk.appendChild(el('div', { class: 'exploit-h', text: '🔑 Keep these' }));
+    var ul2 = el('ul', { class: 'tips' });
+    L.take.forEach(function (o) { ul2.appendChild(el('li', { text: o })); });
+    tk.appendChild(ul2);
+    card.appendChild(tk);
+  }
+  root.appendChild(card);
+
+  /* checkpoint quiz */
+  var quiz = el('div', { class: 'card' });
+  quiz.appendChild(el('div', { class: 'chart-title', text: 'Checkpoint' }));
+  quiz.appendChild(el('div', { class: 'chart-sub', text: 'Retrieval beats re-reading — answer from memory.' }));
+  var allRight = true;
+  L.quiz.forEach(function (item, qi) {
+    var st = studyState.quizState[qi];
+    quiz.appendChild(el('div', { class: 'quiz-q', text: (qi + 1) + '. ' + item.q }));
+    var opts = el('div', { class: 'quiz-opts' });
+    item.options.forEach(function (opt, oi) {
+      var cls = 'quiz-opt';
+      if (st !== undefined) {
+        if (oi === item.a) cls += ' right';
+        else if (oi === st) cls += ' wrong';
+        else cls += ' off';
+      }
+      opts.appendChild(el('button', {
+        class: cls, text: opt,
+        onclick: function () {
+          if (studyState.quizState[qi] !== undefined) return;
+          studyState.quizState[qi] = oi;
+          checkLessonComplete(L);
+          rerender();
+        }
+      }));
+    });
+    quiz.appendChild(opts);
+    if (st !== undefined) {
+      quiz.appendChild(el('div', { class: 'quiz-why ' + (st === item.a ? 'good' : 'bad'), text: (st === item.a ? '✓ ' : '✗ ') + item.why }));
+      if (st !== item.a) allRight = false;
+    } else allRight = false;
+  });
+
+  if (lessonDone(L.id)) {
+    quiz.appendChild(el('div', { class: 'fb-verdict good', text: '✓ Lesson complete' }));
+  } else if (Object.keys(studyState.quizState).length === L.quiz.length && !allRight) {
+    quiz.appendChild(el('button', {
+      class: 'btn ghost block', text: 'Retry checkpoint',
+      onclick: function () { studyState.quizState = {}; rerender(); }
+    }));
+  }
+
+  var row = el('div', { class: 'btn-row' });
+  if (idx > 0) row.appendChild(el('button', {
+    class: 'btn ghost', text: '←',
+    onclick: function () { studyState.lessonId = LESSONS[idx - 1].id; studyState.quizState = {}; rerender(); }
+  }));
+  if (idx < LESSONS.length - 1) row.appendChild(el('button', {
+    class: 'btn primary grow', text: 'Next: ' + LESSONS[idx + 1].title + ' →',
+    onclick: function () { studyState.lessonId = LESSONS[idx + 1].id; studyState.quizState = {}; rerender(); }
+  }));
+  row.appendChild(el('button', { class: 'btn ghost', text: 'All', onclick: function () { studyState.lessonId = null; rerender(); } }));
+  quiz.appendChild(row);
+  root.appendChild(quiz);
+}
+
+function checkLessonComplete(L) {
+  if (Object.keys(studyState.quizState).length !== L.quiz.length) return;
+  var allRight = true;
+  L.quiz.forEach(function (item, qi) { if (studyState.quizState[qi] !== item.a) allRight = false; });
+  if (allRight && !lessonDone(L.id)) {
+    STATE.lessons[L.id] = { done: true, ts: Date.now() };
+    saveState();
+    toast('Lesson complete ✓');
+  }
+}
+
+/* ---------- charts ---------- */
+function renderCharts(root) {
   var charts = chartsByGroup(studyState.tab);
   if (studyState.tab === 'vs3bet') charts = charts.concat(chartsByGroup('vs4bet'));
 
@@ -58,7 +314,6 @@ function renderStudy(root) {
   card.appendChild(interactiveGrid(compiled));
   card.appendChild(renderChartLegend(compiled));
 
-  // tap-a-cell explanation
   if (studyState.cellInfo) {
     var info = studyState.cellInfo;
     var exp = explainAnswer(info.chartId, info.label, '', correctAnswers(info.chartId, info.label));
@@ -70,7 +325,6 @@ function renderStudy(root) {
     card.appendChild(el('p', { class: 'hint', text: '👆 Tap any cell for the why (blockers, playability, border logic).' }));
   }
 
-  // border summary — the memorization shortcut
   var borders = borderSummary(compiled.spec.id);
   if (borders.length) {
     var bs = el('div', { class: 'border-box' });
@@ -117,115 +371,7 @@ function interactiveGrid(compiled) {
   return wrap;
 }
 
-/* ---------- the course ---------- */
-function renderCourse(root) {
-  if (studyState.lessonId) return renderLesson(root, studyState.lessonId);
-  var done = 0;
-  LESSONS.forEach(function (L) { if (STATE.lessons[L.id] && STATE.lessons[L.id].done) done++; });
-  var head = el('div', { class: 'card' });
-  head.appendChild(el('div', { class: 'chart-title', text: 'The logic of winning poker' }));
-  head.appendChild(el('div', { class: 'chart-sub', text: done + '/' + LESSONS.length + ' lessons complete · ~2-3 min each · sequenced to pair with Modern Poker Theory' }));
-  head.appendChild(masteryBar(LESSONS.length ? done / LESSONS.length : 0, ''));
-  root.appendChild(head);
-
-  LESSONS.forEach(function (L, idx) {
-    var isDone = STATE.lessons[L.id] && STATE.lessons[L.id].done;
-    var card = el('div', {
-      class: 'card lesson-row' + (isDone ? ' done' : ''),
-      onclick: function () { studyState.lessonId = L.id; studyState.quizState = {}; rerender(); }
-    });
-    card.appendChild(el('div', { class: 'lesson-head' }, [
-      el('span', { class: 'lesson-icon', text: L.icon }),
-      el('div', {}, [
-        el('div', { class: 'chart-title', text: (idx + 1) + '. ' + L.title }),
-        el('div', { class: 'chart-sub', text: L.minutes + ' min · ' + L.quiz.length + ' checkpoint question' + (L.quiz.length > 1 ? 's' : '') })
-      ]),
-      el('span', { class: 'lesson-check', text: isDone ? '✓' : '›' })
-    ]));
-    root.appendChild(card);
-  });
-}
-
-function renderLesson(root, id) {
-  var L = null;
-  LESSONS.forEach(function (x) { if (x.id === id) L = x; });
-  if (!L) { studyState.lessonId = null; return renderCourse(root); }
-
-  var card = el('div', { class: 'card' });
-  card.appendChild(el('div', { class: 'panel-head' }, [
-    el('div', { class: 'chart-title', text: L.icon + ' ' + L.title }),
-    el('button', { class: 'btn ghost sm', text: '✕', onclick: function () { studyState.lessonId = null; rerender(); } })
-  ]));
-  L.body.forEach(function (p) { card.appendChild(el('p', { class: 'lesson-p', text: p })); });
-  root.appendChild(card);
-
-  // checkpoint quiz
-  var quiz = el('div', { class: 'card' });
-  quiz.appendChild(el('div', { class: 'chart-title', text: 'Checkpoint' }));
-  var allRight = true;
-  L.quiz.forEach(function (item, qi) {
-    var st = studyState.quizState[qi]; // chosen idx
-    quiz.appendChild(el('div', { class: 'quiz-q', text: (qi + 1) + '. ' + item.q }));
-    var opts = el('div', { class: 'quiz-opts' });
-    item.options.forEach(function (opt, oi) {
-      var cls = 'quiz-opt';
-      if (st !== undefined) {
-        if (oi === item.a) cls += ' right';
-        else if (oi === st) cls += ' wrong';
-        else cls += ' off';
-      }
-      opts.appendChild(el('button', {
-        class: cls, text: opt,
-        onclick: function () {
-          if (studyState.quizState[qi] !== undefined) return;
-          studyState.quizState[qi] = oi;
-          checkLessonComplete(L);
-          rerender();
-        }
-      }));
-    });
-    quiz.appendChild(opts);
-    if (st !== undefined) {
-      quiz.appendChild(el('div', { class: 'quiz-why ' + (st === item.a ? 'good' : 'bad'), text: (st === item.a ? '✓ ' : '✗ ') + item.why }));
-      if (st !== item.a) allRight = false;
-    } else allRight = false;
-  });
-
-  var isDone = STATE.lessons[L.id] && STATE.lessons[L.id].done;
-  if (isDone) {
-    quiz.appendChild(el('div', { class: 'fb-verdict good', text: '✓ Lesson complete' }));
-  } else if (Object.keys(studyState.quizState).length === L.quiz.length && !allRight) {
-    quiz.appendChild(el('button', {
-      class: 'btn ghost block', text: 'Retry checkpoint',
-      onclick: function () { studyState.quizState = {}; rerender(); }
-    }));
-  }
-  // next lesson nav
-  var idx = LESSONS.indexOf(L);
-  var row = el('div', { class: 'btn-row' });
-  if (idx < LESSONS.length - 1) {
-    row.appendChild(el('button', {
-      class: 'btn primary grow', text: 'Next lesson →',
-      onclick: function () { studyState.lessonId = LESSONS[idx + 1].id; studyState.quizState = {}; rerender(); }
-    }));
-  }
-  row.appendChild(el('button', { class: 'btn ghost', text: 'All lessons', onclick: function () { studyState.lessonId = null; rerender(); } }));
-  quiz.appendChild(row);
-  root.appendChild(quiz);
-}
-
-function checkLessonComplete(L) {
-  if (Object.keys(studyState.quizState).length !== L.quiz.length) return;
-  var allRight = true;
-  L.quiz.forEach(function (item, qi) { if (studyState.quizState[qi] !== item.a) allRight = false; });
-  if (allRight) {
-    STATE.lessons[L.id] = { done: true, ts: Date.now() };
-    saveState();
-    toast('Lesson complete ✓');
-  }
-}
-
-/* ---------- cheatsheet + types (unchanged content) ---------- */
+/* ---------- cheatsheet + types ---------- */
 function renderCheatsheet(root) {
   LIVE_CHEATSHEET.forEach(function (sec) {
     var card = el('div', { class: 'card' });

@@ -531,3 +531,73 @@ details summary { cursor: pointer; color: var(--info); font-size: 13px; margin-t
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .toast.bad { background: rgba(64, 22, 18, 0.95); border-color: rgba(255, 93, 82, 0.4); }
+
+/* ============ v4: course modules, glossary, rating, exam, pressure ============ */
+.module-card { padding: 14px 16px; }
+.module-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 6px; }
+.module-kicker { color: var(--accent); font-size: 10px; font-weight: 750; letter-spacing: 1.4px; margin-bottom: 3px; }
+.module-count { color: var(--text-3); font-weight: 700; font-size: 13px; white-space: nowrap; }
+.module-count.done { color: var(--accent); }
+.lesson-line {
+  display: flex; align-items: center; gap: 10px; padding: 11px 2px;
+  border-top: 1px solid var(--line); cursor: pointer;
+}
+.lesson-line:active { background: rgba(255,255,255,0.03); }
+.lesson-line.done .lesson-line-title { color: var(--text-2); }
+.lesson-icon.sm { font-size: 17px; }
+.lesson-line-title { flex: 1; font-size: 13.5px; font-weight: 600; line-height: 1.35; }
+.lesson-line-meta { color: var(--text-3); font-size: 11px; }
+.lesson-reader .lesson-title { font-family: var(--font-display); font-size: 19px; font-weight: 700; margin-top: 2px; letter-spacing: -0.2px; }
+.obj-box {
+  background: rgba(52, 209, 134, 0.06); border: 1px solid rgba(52, 209, 134, 0.22);
+  border-radius: var(--r-md); padding: 11px 13px; margin: 14px 0;
+}
+.take-box {
+  background: rgba(233, 185, 79, 0.06); border: 1px solid rgba(233, 185, 79, 0.25);
+  border-radius: var(--r-md); padding: 11px 13px; margin: 14px 0 4px;
+}
+.take-box .exploit-h { color: var(--gold); }
+
+/* glossary */
+.term {
+  color: var(--accent); cursor: pointer;
+  border-bottom: 1px dotted rgba(52, 209, 134, 0.55);
+  font-weight: 550;
+}
+.term:active { background: rgba(52, 209, 134, 0.15); }
+.gloss-card { padding: 13px 15px; }
+.gloss-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.gloss-term { font-family: var(--font-display); font-weight: 700; font-size: 15px; color: var(--accent); }
+.gloss-full { color: var(--text-3); font-size: 12px; }
+.gloss-def { color: #d0dcd3; font-size: 13.5px; line-height: 1.6; margin: 7px 0 0; }
+.gloss-sheet {
+  position: fixed; left: 50%; bottom: 0; transform: translateX(-50%) translateY(105%);
+  width: 100%; max-width: 560px; z-index: 80;
+  background: rgba(18, 26, 21, 0.98); backdrop-filter: blur(16px);
+  border: 1px solid var(--line-strong); border-bottom: none;
+  border-radius: 20px 20px 0 0; padding: 10px 18px calc(18px + env(safe-area-inset-bottom));
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.6);
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.gloss-sheet.open { transform: translateX(-50%) translateY(0); }
+.gloss-grab { width: 38px; height: 4px; border-radius: 99px; background: var(--line-strong); margin: 2px auto 10px; }
+
+/* rating */
+.rating-row { display: flex; align-items: baseline; gap: 9px; margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--line); }
+.rating-num {
+  font-family: var(--font-display); font-size: 26px; font-weight: 800;
+  background: var(--accent-grad); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+.rating-tier {
+  background: rgba(52, 209, 134, 0.12); border: 1px solid rgba(52, 209, 134, 0.3);
+  color: var(--accent); border-radius: 999px; padding: 3px 10px; font-size: 11px; font-weight: 750; letter-spacing: 0.5px;
+}
+.rating-hint { color: var(--text-3); font-size: 10.5px; flex: 1; text-align: right; }
+
+/* exam + pressure */
+.exam-card { border-color: rgba(90, 184, 255, 0.3); }
+.exam-hist { color: var(--text-2); font-size: 12px; margin-top: 6px; font-weight: 600; letter-spacing: 0.4px; }
+.pressure-card { border-style: dashed; }
+.pressure-bar { height: 6px; background: rgba(0,0,0,0.35); border-radius: 99px; overflow: hidden; margin-bottom: 12px; }
+.pressure-fill { height: 100%; width: 100%; background: var(--accent-grad); border-radius: 99px; transition: width 0.1s linear; }
+.pressure-fill.hot { background: linear-gradient(90deg, #e0584d, #b93b30); }

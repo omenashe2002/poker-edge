@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#0d1410">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="EDGE">
+  <title>EDGE — GTO + Exploit Poker Trainer</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>♠️</text></svg>">
+  <link rel="apple-touch-icon" href="icon.png">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div id="app">
+    <header class="top">
+      <h1>EDGE<b>.</b></h1>
+      <span class="tag">GTO study · live exploits · session science</span>
+    </header>
+    <main id="view"></main>
+  </div>
+  <nav id="nav"></nav>
+  <div id="toast" class="toast"></div>
+
+  <!-- engine -->
+  <script src="cards.js"></script>
+  <script src="eval.js"></script>
+  <script src="ranges.js"></script>
+  <script src="exploits.js"></script>
+  <!-- app -->
+  <script src="store.js"></script>
+  <script src="ui.js"></script>
+  <script src="view-study.js"></script>
+  <script src="view-train.js"></script>
+  <script src="view-live.js"></script>
+  <script src="view-hands.js"></script>
+  <script src="view-tools.js"></script>
+  <script src="view-stats.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

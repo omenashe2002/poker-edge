@@ -1,0 +1,12 @@
+{
+  "name": "poker-edge",
+  "version": "1.0.0",
+  "private": true,
+  "description": "EDGE — personal GTO + exploit poker trainer, live table tracker, and session analytics. No build step: open index.html.",
+  "scripts": {
+    "test": "node test-engine.js && node test-ranges.js && node test-app.js"
+  },
+  "devDependencies": {
+    "jsdom": "^29.1.1"
+  }
+}

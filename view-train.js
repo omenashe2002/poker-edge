@@ -246,7 +246,7 @@ function weightedPick(weights) {
 function renderQuestion(root) {
   var q = trainState.q;
   var bar = el('div', { class: 'drill-bar' }, [
-    el('span', { text: (trainState.review ? '🔁 ' : '') + 'Q' + trainState.qNum + '/' + trainState.length }),
+    el('span', { text: (trainState.review ? '' : '') + 'Q' + trainState.qNum + '/' + trainState.length }),
     el('span', { class: 'drill-score', text: sessionScoreText() }),
     el('button', { class: 'btn ghost sm', text: 'Quit', onclick: function () { trainState.mode = null; rerender(); } })
   ]);

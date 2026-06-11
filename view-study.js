@@ -8,36 +8,66 @@
 
 var studyState = { tab: 'course', chartId: 'rfi9-lj', cellInfo: null, lessonId: null, quizState: {}, glossQuery: '' };
 
-var STUDY_TABS = [
-  { id: 'course', label: 'Course' },
-  { id: 'gloss', label: 'Glossary' },
-  { id: 'rfi', label: 'Open (RFI)' },
-  { id: 'vsrfi', label: 'Defend & 3-Bet' },
-  { id: 'vslimp', label: 'vs Limpers' },
-  { id: 'vs3bet', label: 'vs 3-Bet' },
-  { id: 'pushfold', label: 'Push/Fold' },
-  { id: 'cheat', label: 'Live Sheet' },
-  { id: 'types', label: 'Player Types' }
+var STUDY_AREAS = [
+  { id: 'learn', label: 'Learn', tabs: [
+    { id: 'course', label: 'Course' },
+    { id: 'gloss', label: 'Glossary' }
+  ] },
+  { id: 'charts', label: 'Charts', tabs: [
+    { id: 'rfi', label: 'Open' },
+    { id: 'vsrfi', label: 'Defend·3-Bet' },
+    { id: 'vslimp', label: 'vs Limpers' },
+    { id: 'vs3bet', label: 'vs 3-Bet' },
+    { id: 'pushfold', label: 'Push/Fold' }
+  ] },
+  { id: 'ref', label: 'Reference', tabs: [
+    { id: 'cheat', label: 'Live Sheet' },
+    { id: 'types', label: 'Player Types' },
+    { id: 'videos', label: 'Videos' }
+  ] }
 ];
+function areaOfTab(tabId) {
+  for (var i = 0; i < STUDY_AREAS.length; i++) {
+    for (var j = 0; j < STUDY_AREAS[i].tabs.length; j++) {
+      if (STUDY_AREAS[i].tabs[j].id === tabId) return STUDY_AREAS[i];
+    }
+  }
+  return STUDY_AREAS[0];
+}
 
 function renderStudy(root) {
   clear(root);
-  root.appendChild(sectionTitle('Study', 'The course teaches the why; the charts hold the what. Tap any highlighted term or grid cell for an instant explanation.'));
+  root.appendChild(sectionTitle('Study', 'The course teaches the why; the charts hold the what.'));
 
-  var tabs = el('div', { class: 'pill-row' });
-  STUDY_TABS.forEach(function (t) {
-    tabs.appendChild(el('button', {
-      class: 'pill' + (studyState.tab === t.id ? ' on' : ''),
-      text: t.label,
-      onclick: function () { studyState.tab = t.id; studyState.cellInfo = null; studyState.lessonId = null; rerender(); }
+  var area = areaOfTab(studyState.tab);
+  var seg = el('div', { class: 'seg' });
+  STUDY_AREAS.forEach(function (a) {
+    seg.appendChild(el('button', {
+      class: a.id === area.id ? 'on' : '', text: a.label,
+      onclick: function () {
+        studyState.tab = a.tabs[0].id;
+        studyState.cellInfo = null; studyState.lessonId = null;
+        rerender();
+      }
     }));
   });
-  root.appendChild(tabs);
+  root.appendChild(seg);
+  if (area.tabs.length > 1) {
+    var sub = el('div', { class: 'subtab-row' });
+    area.tabs.forEach(function (t) {
+      sub.appendChild(el('button', {
+        class: 'subtab' + (studyState.tab === t.id ? ' on' : ''), text: t.label,
+        onclick: function () { studyState.tab = t.id; studyState.cellInfo = null; studyState.lessonId = null; rerender(); }
+      }));
+    });
+    root.appendChild(sub);
+  }
 
   if (studyState.tab === 'course') return renderCourse(root);
   if (studyState.tab === 'gloss') return renderGlossary(root);
   if (studyState.tab === 'cheat') return renderCheatsheet(root);
   if (studyState.tab === 'types') return renderTypes(root);
+  if (studyState.tab === 'videos') { root.appendChild(mastersLibraryCard()); return; }
   renderCharts(root);
 }
 
@@ -146,15 +176,25 @@ function renderCourse(root) {
   var done = 0;
   LESSONS.forEach(function (L) { if (lessonDone(L.id)) done++; });
   var head = el('div', { class: 'card' });
-  head.appendChild(el('div', { class: 'chart-title', text: 'The EDGE Course' }));
-  head.appendChild(el('div', { class: 'chart-sub', text: done + '/' + LESSONS.length + ' lessons complete · 5 modules · built on retrieval, spacing, and interleaving — the highest-evidence learning techniques known' }));
-  head.appendChild(masteryBar(LESSONS.length ? done / LESSONS.length : 0, ''));
-  // continue card
+  var pct = LESSONS.length ? done / LESSONS.length : 0;
+  var circ = 2 * Math.PI * 26;
+  var hero = el('div', { class: 'course-hero' });
+  var ring = el('div', { class: 'course-ring' });
+  ring.innerHTML = '<svg width="64" height="64" viewBox="0 0 64 64">' +
+    '<circle cx="32" cy="32" r="26" fill="none" stroke="#171C1E" stroke-width="5"/>' +
+    '<circle cx="32" cy="32" r="26" fill="none" stroke="#5BD1FA" stroke-width="5" stroke-linecap="round" transform="rotate(-90 32 32)" stroke-dasharray="' + (circ * pct).toFixed(1) + ' ' + circ.toFixed(1) + '"/>' +
+    '<text x="32" y="37" text-anchor="middle" fill="#F2F5F6" font-size="13" font-family="IBM Plex Mono, monospace">' + Math.round(pct * 100) + '%</text></svg>';
+  hero.appendChild(ring);
+  hero.appendChild(el('div', {}, [
+    el('div', { class: 'chart-title', text: 'The EDGE Course' }),
+    el('div', { class: 'chart-sub', text: done + '/' + LESSONS.length + ' lessons complete · 5 modules · retrieval + spacing + interleaving' })
+  ]));
+  head.appendChild(hero);
   var next = null;
   for (var i = 0; i < LESSONS.length; i++) if (!lessonDone(LESSONS[i].id)) { next = LESSONS[i]; break; }
-  if (next && done > 0) {
+  if (next) {
     head.appendChild(el('button', {
-      class: 'btn primary block', text: '▶ Continue: ' + next.title,
+      class: 'btn primary block', text: (done > 0 ? 'Continue — ' : 'Start — ') + next.title,
       onclick: function () { studyState.lessonId = next.id; studyState.quizState = {}; rerender(); }
     }));
   }
@@ -178,15 +218,14 @@ function renderCourse(root) {
         class: 'lesson-line' + (lessonDone(L.id) ? ' done' : ''),
         onclick: function () { studyState.lessonId = L.id; studyState.quizState = {}; rerender(); }
       }, [
-        el('span', { class: 'lesson-icon sm', text: L.icon }),
-        el('span', { class: 'lesson-line-title', text: (idx + 1) + '. ' + L.title }),
+        el('span', { class: 'lesson-num', text: (idx + 1 < 10 ? '0' : '') + (idx + 1) }),
+        el('span', { class: 'lesson-line-title', text: L.title }),
         el('span', { class: 'lesson-line-meta', text: L.minutes + 'm' }),
         el('span', { class: 'lesson-check', text: lessonDone(L.id) ? '✓' : '›' })
       ]));
     });
     root.appendChild(card);
   });
-  root.appendChild(mastersLibraryCard());
 }
 
 function renderLesson(root, id) {
@@ -199,7 +238,7 @@ function renderLesson(root, id) {
   card.appendChild(el('div', { class: 'panel-head' }, [
     el('div', {}, [
       el('div', { class: 'module-kicker', text: 'MODULE ' + (modIdx + 1) + ' · LESSON ' + (idx + 1) + '/' + LESSONS.length }),
-      el('div', { class: 'lesson-title', text: L.icon + ' ' + L.title })
+      el('div', { class: 'lesson-title', text: L.title })
     ]),
     el('button', { class: 'btn ghost sm', text: '✕', onclick: function () { studyState.lessonId = null; rerender(); } })
   ]));

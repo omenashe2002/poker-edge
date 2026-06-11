@@ -201,8 +201,10 @@ function sectionTitle(t, sub) {
   ]);
 }
 
-/* confirm helper */
-function confirmAction(msg, fn) { if (window.confirm(msg)) fn(); }
+/* confirm helper — routed through the sheet system */
+function confirmAction(msg, fn) {
+  showSheet({ title: 'Are you sure?', sub: msg, confirmText: 'Yes, do it', danger: true, onConfirm: fn });
+}
 
 /* ---------- mini table scene (visual drill situations) ---------- */
 var ACTION_ORDER_9 = ['UTG', 'UTG+1', 'MP', 'LJ', 'HJ', 'CO', 'BTN', 'SB', 'BB'];
@@ -293,4 +295,83 @@ function masteryBar(pct, label) {
   wrap.appendChild(bar);
   wrap.appendChild(el('span', { class: 'mbar-pct', text: pct === null ? 'new' : Math.round(pct * 100) + '%' }));
   return wrap;
+}
+
+/* ---------- app sheet: the modal system (replaces prompt/confirm) ----------
+   showSheet({ title, sub, fields:[{key,label,type:'money'|'text'|'select',value,options}],
+               confirmText, danger, onConfirm(values), quick:[amounts] })       */
+function closeSheet() {
+  var v = document.getElementById('sheet-veil');
+  var s = document.getElementById('app-sheet');
+  if (v) { v.className = 'sheet-veil'; setTimeout(function () { if (v.parentNode) v.parentNode.removeChild(v); }, 220); }
+  if (s) { s.className = 'app-sheet'; setTimeout(function () { if (s.parentNode) s.parentNode.removeChild(s); }, 240); }
+}
+function showSheet(cfg) {
+  closeSheet();
+  var veil = el('div', { id: 'sheet-veil', class: 'sheet-veil', onclick: closeSheet });
+  var sheet = el('div', { id: 'app-sheet', class: 'app-sheet' });
+  sheet.appendChild(el('div', { class: 'gloss-grab' }));
+  sheet.appendChild(el('div', { class: 'sheet-title', text: cfg.title }));
+  if (cfg.sub) sheet.appendChild(el('div', { class: 'sheet-sub', text: cfg.sub }));
+  var inputs = {};
+  var firstMoney = null;
+  (cfg.fields || []).forEach(function (f) {
+    if (f.label) sheet.appendChild(el('div', { class: 'lab', text: f.label }));
+    var inp;
+    if (f.type === 'select') {
+      inp = el('select', { class: 'select' });
+      (f.options || []).forEach(function (o) { inp.appendChild(el('option', { value: o, text: o })); });
+      if (f.value !== undefined) inp.value = f.value;
+    } else {
+      inp = el('input', {
+        class: 'sheet-input' + (f.type === 'text' ? ' text' : ''),
+        type: f.type === 'money' ? 'number' : 'text',
+        value: f.value !== undefined && f.value !== null ? f.value : ''
+      });
+      if (f.type === 'money') { inp.setAttribute('inputmode', 'decimal'); if (!firstMoney) firstMoney = inp; }
+      if (f.placeholder) inp.setAttribute('placeholder', f.placeholder);
+    }
+    inputs[f.key] = inp;
+    sheet.appendChild(inp);
+    if (f.type === 'money' && cfg.quick && cfg.quick.length) {
+      var q = el('div', { class: 'quick-row' });
+      cfg.quick.forEach(function (amt) {
+        q.appendChild(el('button', {
+          class: 'chip', text: '+' + amt,
+          onclick: function () { inp.value = String((parseFloat(inp.value) || 0) + amt); }
+        }));
+      });
+      q.appendChild(el('button', { class: 'chip', text: 'CLR', onclick: function () { inp.value = ''; } }));
+      sheet.appendChild(q);
+    }
+  });
+  var row = el('div', { class: 'btn-row' });
+  row.appendChild(el('button', {
+    class: 'btn grow ' + (cfg.danger ? 'danger' : 'primary'),
+    text: cfg.confirmText || 'Confirm',
+    onclick: function () {
+      var values = {};
+      for (var k in inputs) values[k] = inputs[k].value;
+      closeSheet();
+      if (cfg.onConfirm) cfg.onConfirm(values);
+    }
+  }));
+  row.appendChild(el('button', { class: 'btn ghost', text: 'Cancel', onclick: closeSheet }));
+  sheet.appendChild(row);
+  sheet.addEventListener('click', function (e) { e.stopPropagation(); });
+  document.body.appendChild(veil);
+  document.body.appendChild(sheet);
+  setTimeout(function () { veil.className = 'sheet-veil open'; sheet.className = 'app-sheet open'; }, 10);
+}
+/* money convenience */
+function moneySheet(title, sub, defVal, cb, quick) {
+  showSheet({
+    title: title, sub: sub,
+    fields: [{ key: 'amt', type: 'money', value: defVal }],
+    quick: quick || [25, 50, 100, 200],
+    onConfirm: function (v) {
+      var amt = parseFloat(v.amt);
+      if (!isNaN(amt)) cb(amt);
+    }
+  });
 }

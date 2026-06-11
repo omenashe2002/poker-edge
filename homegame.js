@@ -118,19 +118,17 @@ function renderHomeLedger(root) {
       class: 'btn sm primary', text: '+ Buy-in',
       onclick: function () {
         var def = p.buyins.length ? p.buyins[p.buyins.length - 1] : (g.players[0] && g.players[0].buyins[0]) || 50;
-        var v = prompt('Buy-in amount for ' + p.name + ':', String(def));
-        if (v === null) return;
-        var amt = parseFloat(v);
-        if (!isNaN(amt) && amt > 0) { p.buyins.push(amt); g.transfers = null; saveState(); rerender(); }
+        moneySheet('Buy-in — ' + p.name, 'Each entry is tracked separately.', def, function (amt) {
+          if (amt > 0) { p.buyins.push(amt); g.transfers = null; saveState(); rerender(); }
+        }, [20, 50, 100, 200]);
       }
     }));
     btns.appendChild(el('button', {
       class: 'btn sm ghost', text: 'Cash out',
       onclick: function () {
-        var v = prompt('Cash-out for ' + p.name + ' (final chips):', p.cashout !== null ? String(p.cashout) : '');
-        if (v === null) return;
-        var amt = parseFloat(v);
-        if (!isNaN(amt) && amt >= 0) { p.cashout = amt; g.transfers = null; saveState(); rerender(); }
+        moneySheet('Cash-out — ' + p.name, 'Final chip count converted to cash.', p.cashout !== null ? p.cashout : '', function (amt) {
+          if (amt >= 0) { p.cashout = amt; g.transfers = null; saveState(); rerender(); }
+        }, [25, 50, 100, 200]);
       }
     }));
     btns.appendChild(el('button', {
@@ -184,7 +182,7 @@ function renderHomeLedger(root) {
           var txt2 = hgSummaryText(g);
           if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(txt2).then(function () { toast('Summary copied — paste it in the group chat.'); });
-          } else { window.prompt('Copy:', txt2); }
+          } else { toast('Clipboard unavailable in this browser.', true); }
         }
       }));
       act.appendChild(el('button', {
@@ -205,13 +203,19 @@ function finishHomeGame(g) {
   STATE.homeGames = STATE.homeGames || [];
   STATE.homeGames.push(g);
   if (STATE.homeGames.length > 60) STATE.homeGames = STATE.homeGames.slice(-50);
+  STATE.homeGame = null;
+  saveState();
+  rerender();
   // offer to log my own result into bankroll sessions
-  var names = g.players.map(function (p) { return p.name; }).join(', ');
-  var me = prompt('Archived. Add YOUR result to your session stats?\nType your player name exactly (or Cancel to skip):\n' + names, '');
-  if (me) {
-    var mine = null;
-    g.players.forEach(function (p) { if (p.name.toLowerCase() === me.trim().toLowerCase()) mine = p; });
-    if (mine) {
+  showSheet({
+    title: 'Add your result?', sub: 'Pick which player was you to log this in your session stats.',
+    fields: [{ key: 'me', type: 'select', options: ['(skip)'].concat(g.players.map(function (p) { return p.name; })) }],
+    confirmText: 'Add to my sessions',
+    onConfirm: function (v) {
+      if (!v.me || v.me === '(skip)') return;
+      var mine = null;
+      g.players.forEach(function (p) { if (p.name === v.me) mine = p; });
+      if (!mine) return;
       var b = 0;
       mine.buyins.forEach(function (x) { b += x; });
       STATE.sessions.push({
@@ -220,12 +224,11 @@ function finishHomeGame(g) {
         location: g.name, hours: Math.max(1, Math.round((Date.now() - g.startedAt) / 36e5 * 10) / 10),
         buyin: b, cashout: mine.cashout || 0, notes: 'home game'
       });
+      saveState();
       toast('Added to your sessions: ' + (hgNet(mine) >= 0 ? '+' : '') + fmtMoney(hgNet(mine)));
-    } else toast('Name not found — skipped.', true);
-  }
-  STATE.homeGame = null;
-  saveState();
-  rerender();
+      rerender();
+    }
+  });
 }
 
 function renderHomeHistory(root) {

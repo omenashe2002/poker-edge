@@ -210,10 +210,16 @@ function run(w) {
     findBtn(doc, '.logger .btn', 'Save hand').click();
     ok(w.STATE.hands.length === 1, 'hand saved');
 
-    // end session (prompt stub: cashout 900 default)
+    // end session via the sheet (no browser prompts anymore)
     findBtn(doc, '.btn', 'End session').click();
+    var sheet = doc.getElementById('app-sheet');
+    ok(!!sheet, 'end-session sheet opens');
+    var sIns = sheet.querySelectorAll('input');
+    sIns[0].value = '900';
+    findBtn(sheet, '.btn', 'Save session').click();
     ok(w.STATE.liveSession === null, 'session ended');
     ok(w.STATE.sessions.length === 1, 'session recorded');
+    ok(doc.getElementById('app-sheet') === null || doc.getElementById('app-sheet').className.indexOf('open') < 0, 'sheet closed after confirm');
 
     // hands review
     w.navTo('hands');
@@ -271,9 +277,11 @@ function run(w) {
     var vlinks = doc.querySelectorAll('.video-link');
     ok(vlinks.length >= 2, 'lesson has master video picks');
     ok(vlinks[0].href.indexOf('youtube.com/results') >= 0, 'video links are stable YouTube searches');
-    w.studyState.lessonId = null; w.rerender();
-    ok(doc.body.textContent.indexOf('The Masters') >= 0, 'masters library card renders');
+    w.studyState.lessonId = null; w.studyState.tab = 'videos'; w.rerender();
+    ok(doc.body.textContent.indexOf('The Masters') >= 0, 'masters library renders under Reference > Videos');
     ok(doc.querySelectorAll('.master-row').length === 8, '8 master channels listed');
+    ok(doc.querySelectorAll('.seg button').length === 3, 'segmented control has 3 areas');
+    w.studyState.tab = 'course';
 
     // stats
     w.navTo('stats');

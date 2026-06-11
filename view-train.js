@@ -45,30 +45,37 @@ function goalWidget() {
   var g = goalState();
   var pct = Math.min(1, g.todayCount / g.dailyTarget);
   var streak = currentStreak();
-  var card = el('div', { class: 'card goal-card' });
-  var row = el('div', { class: 'goal-row' }, [
+  var er = edgeRating();
+  var card = el('div', { class: 'card hero goal-card' });
+  card.appendChild(el('div', { class: 'hero-top' }, [
     el('div', {}, [
-      el('div', { class: 'chart-title', text: 'Today: ' + g.todayCount + ' / ' + g.dailyTarget + ' answers' }),
-      el('div', { class: 'chart-sub', text: streak > 0 ? '🔥 ' + streak + '-day streak' + (g.bestStreak > streak ? ' · best ' + g.bestStreak : ' (best!)') : 'Hit your goal to start a streak' })
+      el('div', { class: 'rating-row' }, [
+        el('span', { class: 'rating-num', text: er.rating }),
+        el('span', { class: 'rating-tier', text: er.tier })
+      ]),
+      el('div', { class: 'rating-hint', style: 'text-align:left;margin-top:4px', text: 'EDGE rating \u00b7 mastery + course + exams' })
     ]),
     el('button', {
-      class: 'btn ghost sm', text: '⚙',
+      class: 'btn ghost sm', text: 'Goal',
       onclick: function () {
-        var v = prompt('Daily answer goal:', String(g.dailyTarget));
-        if (v === null) return;
-        var t = parseInt(v, 10);
-        if (t > 0) { g.dailyTarget = t; saveState(); rerender(); }
+        showSheet({
+          title: 'Daily goal', sub: 'Answers per day that keep the streak alive.',
+          fields: [{ key: 'n', type: 'money', value: g.dailyTarget }],
+          quick: [10, 20, 30],
+          confirmText: 'Set goal',
+          onConfirm: function (v) {
+            var n = parseInt(v.n, 10);
+            if (n > 0) { g.dailyTarget = n; saveState(); rerender(); }
+          }
+        });
       }
     })
-  ]);
-  card.appendChild(row);
-  card.appendChild(masteryBar(pct, ''));
-  var er = edgeRating();
-  card.appendChild(el('div', { class: 'rating-row' }, [
-    el('span', { class: 'rating-num', text: er.rating }),
-    el('span', { class: 'rating-tier', text: er.tier }),
-    el('span', { class: 'rating-hint', text: 'EDGE rating \u00b7 mastery + course + exams' })
   ]));
+  card.appendChild(el('div', { class: 'goal-row', style: 'margin-top:12px' }, [
+    el('div', { class: 'chart-sub', text: 'Today: ' + g.todayCount + ' / ' + g.dailyTarget + ' answers' }),
+    el('div', { class: 'chart-sub', text: streak > 0 ? streak + '-day streak' + (g.bestStreak > streak ? ' \u00b7 best ' + g.bestStreak : '') : 'no active streak' })
+  ]));
+  card.appendChild(masteryBar(pct, ''));
   return card;
 }
 
@@ -117,6 +124,8 @@ function renderReviewCard(root) {
 
 /* ---------- picker ---------- */
 function renderDrillPicker(root) {
+  root.appendChild(el('div', { class: 'lab', text: 'Drills' }));
+  var grid = el('div', { class: 'drill-grid' });
   DRILL_MODES.forEach(function (m) {
     var card = el('div', { class: 'card drill-pick' });
     card.appendChild(el('div', { class: 'chart-title', text: m.label }));
@@ -128,11 +137,12 @@ function renderDrillPicker(root) {
       card.appendChild(masteryBar(s.n ? s.acc : null, 'accuracy'));
     }
     var btns = el('div', { class: 'btn-row' });
-    btns.appendChild(el('button', { class: 'btn primary grow', text: 'Quick · 12', onclick: function () { startDrill(m.id, 12, false); } }));
-    btns.appendChild(el('button', { class: 'btn ghost grow', text: 'Deep · 30', onclick: function () { startDrill(m.id, 30, false); } }));
+    btns.appendChild(el('button', { class: 'btn primary grow sm', text: 'Quick · 12', onclick: function () { startDrill(m.id, 12, false); } }));
+    btns.appendChild(el('button', { class: 'btn ghost grow sm', text: 'Deep · 30', onclick: function () { startDrill(m.id, 30, false); } }));
     card.appendChild(btns);
-    root.appendChild(card);
+    grid.appendChild(card);
   });
+  root.appendChild(grid);
   // pressure mode toggle
   var pr = el('div', { class: 'card pressure-card' });
   pr.appendChild(el('div', { class: 'panel-head' }, [

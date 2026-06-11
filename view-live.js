@@ -118,10 +118,9 @@ function renderActiveSession(root, s) {
 }
 
 function addRebuy(s) {
-  var v = prompt('Rebuy amount?', String(s.bb * 100));
-  if (v === null) return;
-  var amt = parseFloat(v);
-  if (!isNaN(amt) && amt > 0) { s.buyin += amt; saveState(); rerender(); toast('Rebuy added: ' + fmtMoney(amt)); }
+  moneySheet('Rebuy', 'Adds to your total buy-in for this session.', s.bb * 100, function (amt) {
+    if (amt > 0) { s.buyin += amt; saveState(); rerender(); toast('Rebuy added: ' + fmtMoney(amt)); }
+  }, [100, 200, 300, 500]);
 }
 
 function commitHand(s) {
@@ -364,12 +363,18 @@ function renderHandLogger(s) {
 
 /* ---------- end session ---------- */
 function endSession(s) {
-  var cash = prompt('Cash-out amount?', '');
-  if (cash === null) return;
-  var cashout = parseFloat(cash) || 0;
-  var hrs = (Date.now() - s.startedAt) / 36e5;
-  var hrsIn = prompt('Hours played?', hrs.toFixed(1));
-  if (hrsIn !== null) hrs = parseFloat(hrsIn) || hrs;
+  var hrsDef = ((Date.now() - s.startedAt) / 36e5).toFixed(1);
+  showSheet({
+    title: 'End session', sub: s.sb + '/' + s.bb + ' @ ' + s.location + ' · in for ' + fmtMoney(s.buyin),
+    fields: [
+      { key: 'cash', type: 'money', label: 'Cash-out', value: '' },
+      { key: 'hrs', type: 'money', label: 'Hours played', value: hrsDef }
+    ],
+    confirmText: 'Save session',
+    onConfirm: function (v) { finishLiveSession(s, parseFloat(v.cash) || 0, parseFloat(v.hrs) || parseFloat(hrsDef)); }
+  });
+}
+function finishLiveSession(s, cashout, hrs) {
   STATE.sessions.push({
     id: s.id, date: new Date(s.startedAt).toISOString().slice(0, 10),
     stakes: s.sb + '/' + s.bb, sb: s.sb, bb: s.bb, game: 'NLHE',

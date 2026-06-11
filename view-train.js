@@ -8,7 +8,8 @@
 
 var DRILL_MODES = [
   { id: 'rfi', label: 'Opening (RFI)', desc: 'Folded to you → Raise or Fold', group: 'rfi' },
-  { id: 'vsrfi', label: 'Defending', desc: 'Facing an open → Fold / Call / 3-Bet', group: 'vsrfi' },
+  { id: 'vsrfi', label: 'Defending & 3-Betting', desc: 'Facing an open → Fold / Call / 3-Bet', group: 'vsrfi' },
+  { id: 'vslimp', label: 'vs Limpers', desc: 'Limpers in front → Fold / Over-limp / Iso-raise', group: 'vslimp' },
   { id: 'vs3bet', label: 'vs 3-Bet', desc: 'You opened, got 3-bet → Fold / Call / 4-Bet', group: 'vs3bet' },
   { id: 'pushfold', label: 'Push/Fold', desc: 'Short-stack MTT → Shove or Fold', group: 'pushfold' },
   { id: 'math', label: 'Poker Math', desc: 'Pot odds · MDF · bluff break-even · outs', group: null }
@@ -109,7 +110,7 @@ function renderReviewCard(root) {
   var due = srsDue();
   if (!due.length) return;
   var card = el('div', { class: 'card review-card', onclick: function () { startReview(); } });
-  card.appendChild(el('div', { class: 'chart-title', text: '🔁 Review queue: ' + due.length + ' hand' + (due.length > 1 ? 's' : '') + ' due' }));
+  card.appendChild(el('div', { class: 'chart-title', text: 'Review queue: ' + due.length + ' hand' + (due.length > 1 ? 's' : '') + ' due' }));
   card.appendChild(el('div', { class: 'chart-sub', text: 'Hands you missed, scheduled by spaced repetition (1→3→7→14→30 days). Clear these first — this is where ranges become permanent.' }));
   root.appendChild(card);
 }
@@ -127,8 +128,8 @@ function renderDrillPicker(root) {
       card.appendChild(masteryBar(s.n ? s.acc : null, 'accuracy'));
     }
     var btns = el('div', { class: 'btn-row' });
-    btns.appendChild(el('button', { class: 'btn primary grow', text: '⚡ Quick (12)', onclick: function () { startDrill(m.id, 12, false); } }));
-    btns.appendChild(el('button', { class: 'btn ghost grow', text: '🏋️ Deep (30)', onclick: function () { startDrill(m.id, 30, false); } }));
+    btns.appendChild(el('button', { class: 'btn primary grow', text: 'Quick · 12', onclick: function () { startDrill(m.id, 12, false); } }));
+    btns.appendChild(el('button', { class: 'btn ghost grow', text: 'Deep · 30', onclick: function () { startDrill(m.id, 30, false); } }));
     card.appendChild(btns);
     root.appendChild(card);
   });
@@ -136,7 +137,7 @@ function renderDrillPicker(root) {
   var pr = el('div', { class: 'card pressure-card' });
   pr.appendChild(el('div', { class: 'panel-head' }, [
     el('div', {}, [
-      el('div', { class: 'chart-title', text: '⏱ Pressure mode' }),
+      el('div', { class: 'chart-title', text: 'Pressure mode' }),
       el('div', { class: 'chart-sub', text: '10-second shot clock per question. Stakes sharpen focus — timeouts count as misses.' })
     ]),
     el('button', {
@@ -463,7 +464,7 @@ function renderDrillSummary(root) {
   row.appendChild(el('button', { class: 'btn primary grow', text: 'Again', onclick: function () { trainState.review ? startReview() : (trainState.mode === 'exam' ? startExam() : startDrill(trainState.mode, trainState.length, false)); } }));
   var due = srsDue();
   if (due.length && !trainState.review) {
-    row.appendChild(el('button', { class: 'btn accent grow', text: '🔁 Review ' + due.length, onclick: function () { startReview(); } }));
+    row.appendChild(el('button', { class: 'btn accent grow', text: 'Review · ' + due.length, onclick: function () { startReview(); } }));
   }
   row.appendChild(el('button', { class: 'btn ghost', text: 'Done', onclick: function () { trainState.mode = null; rerender(); } }));
   card.appendChild(row);

@@ -131,7 +131,7 @@ function videoBox(lessonId) {
   var picks = VIDEO_PICKS[lessonId];
   if (!picks || !picks.length) return null;
   var box = el('div', { class: 'video-box' });
-  box.appendChild(el('div', { class: 'exploit-h', text: '🎬 Watch the masters on this' }));
+  box.appendChild(el('div', { class: 'exploit-h', text: 'Watch the masters on this' }));
   picks.forEach(function (v) {
     var a = el('a', { class: 'video-link', href: ytSearch(v.q), target: '_blank', rel: 'noopener' }, [
       el('span', { class: 'video-play', text: '▶' }),
@@ -149,7 +149,7 @@ function videoBox(lessonId) {
 
 function mastersLibraryCard() {
   var card = el('div', { class: 'card' });
-  card.appendChild(el('div', { class: 'chart-title', text: '🎥 The Masters — video library' }));
+  card.appendChild(el('div', { class: 'chart-title', text: 'The Masters — video library' }));
   card.appendChild(el('div', { class: 'chart-sub', text: 'The eight channels worth your hours, chosen for signal density. Every lesson links its picks; this is the full shelf.' }));
   MASTERS.forEach(function (m) {
     var row = el('a', { class: 'master-row', href: m.url, target: '_blank', rel: 'noopener' });

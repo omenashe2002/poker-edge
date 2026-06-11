@@ -651,3 +651,7 @@ details summary { cursor: pointer; color: var(--info); font-size: 13px; margin-t
 .master-row > div { flex: 1; }
 .master-name { font-weight: 700; font-size: 14px; color: var(--info); }
 .master-why { color: var(--text-2); font-size: 12px; line-height: 1.5; margin-top: 2px; }
+
+/* v6: svg dock icons */
+.nav-ico svg { width: 19px; height: 19px; display: block; }
+.nav-ico { display: flex; align-items: center; justify-content: center; height: 20px; }

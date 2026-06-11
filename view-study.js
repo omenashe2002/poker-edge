@@ -9,10 +9,11 @@
 var studyState = { tab: 'course', chartId: 'rfi9-lj', cellInfo: null, lessonId: null, quizState: {}, glossQuery: '' };
 
 var STUDY_TABS = [
-  { id: 'course', label: '🎓 Course' },
-  { id: 'gloss', label: '📖 Glossary' },
+  { id: 'course', label: 'Course' },
+  { id: 'gloss', label: 'Glossary' },
   { id: 'rfi', label: 'Open (RFI)' },
-  { id: 'vsrfi', label: 'Defend' },
+  { id: 'vsrfi', label: 'Defend & 3-Bet' },
+  { id: 'vslimp', label: 'vs Limpers' },
   { id: 'vs3bet', label: 'vs 3-Bet' },
   { id: 'pushfold', label: 'Push/Fold' },
   { id: 'cheat', label: 'Live Sheet' },
@@ -216,7 +217,7 @@ function renderLesson(root, id) {
 
   if (L.take && L.take.length) {
     var tk = el('div', { class: 'take-box' });
-    tk.appendChild(el('div', { class: 'exploit-h', text: '🔑 Keep these' }));
+    tk.appendChild(el('div', { class: 'exploit-h', text: 'Keep these' }));
     var ul2 = el('ul', { class: 'tips' });
     L.take.forEach(function (o) { ul2.appendChild(el('li', { text: o })); });
     tk.appendChild(ul2);
@@ -325,13 +326,13 @@ function renderCharts(root) {
     panel.appendChild(el('div', { class: 'fb-why', text: exp.text }));
     card.appendChild(panel);
   } else {
-    card.appendChild(el('p', { class: 'hint', text: '👆 Tap any cell for the why (blockers, playability, border logic).' }));
+    card.appendChild(el('p', { class: 'hint', text: 'Tap any cell for the why \u2014 blockers, playability, border logic.' }));
   }
 
   var borders = borderSummary(compiled.spec.id);
   if (borders.length) {
     var bs = el('div', { class: 'border-box' });
-    bs.appendChild(el('div', { class: 'exploit-h', text: '📏 Memorize the borders, not the grid' }));
+    bs.appendChild(el('div', { class: 'exploit-h', text: 'Memorize the borders, not the grid' }));
     borders.forEach(function (b) {
       bs.appendChild(el('div', { class: 'border-row' }, [
         el('span', { class: 'border-fam', text: b.name }),

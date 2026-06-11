@@ -253,6 +253,12 @@ function sceneForSpec(spec) {
   if (spec.group === 'rfi' || spec.group === 'pushfold') {
     foldUpTo(hero);
     toAct = 'folded to you';
+  } else if (spec.group === 'vslimp') {
+    var limper = hero === 'BTN' ? 'MP' : hero === 'SB' ? 'UTG+1' : 'UTG';
+    foldUpTo(limper);
+    chips[limper] = 'limp';
+    foldBetween(limper, hero);
+    toAct = limper + ' limped \u2192 you';
   } else if (spec.group === 'vsrfi') {
     var raiserKey = (spec.vs || '').split(' ')[0];
     var raiser = seatOf(raiserKey);

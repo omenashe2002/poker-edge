@@ -82,7 +82,7 @@ function renderHomeLedger(root) {
 
   var head = el('div', { class: 'card live-head' }, [
     el('div', {}, [
-      el('div', { class: 'chart-title', text: '🏠 ' + g.name }),
+      el('div', { class: 'chart-title', text: g.name }),
       el('div', { class: 'chart-sub', text: g.players.length + ' players · on the table: ' + fmtMoney(tot.inSum - tot.outSum) })
     ]),
     el('button', {
@@ -164,7 +164,7 @@ function renderHomeLedger(root) {
       sCard.appendChild(el('div', { class: 'fb-verdict bad', text: 'Chips off by ' + fmtMoney(Math.abs(tot.diff)) + ' (' + (tot.diff > 0 ? 'more cashed out than bought in' : 'missing from cash-outs') + ') — recount before settling.' }));
     }
     sCard.appendChild(el('button', {
-      class: 'btn primary block', text: '⚖ Compute minimal payments',
+      class: 'btn primary block', text: 'Compute minimal payments',
       onclick: function () { g.transfers = hgSettle(g.players); saveState(); rerender(); }
     }));
     if (g.transfers) {
@@ -179,7 +179,7 @@ function renderHomeLedger(root) {
       });
       var act = el('div', { class: 'btn-row wrap' });
       act.appendChild(el('button', {
-        class: 'btn ghost', text: '📋 Copy summary',
+        class: 'btn ghost', text: 'Copy summary',
         onclick: function () {
           var txt2 = hgSummaryText(g);
           if (navigator.clipboard && navigator.clipboard.writeText) {

@@ -25,6 +25,7 @@ var ACTION_META = {
 /* Which buttons a drill shows for each chart group */
 var GROUP_ANSWERS = {
   rfi:      ['fold', 'raise'],
+  vslimp:   ['fold', 'call', 'raise'],
   vsrfi:    ['fold', 'call', 'threebet'],
   vs3bet:   ['fold', 'call', 'fourbet'],
   vs4bet:   ['fold', 'call', 'shove'],
@@ -81,6 +82,31 @@ var RANGE_CHARTS = [
     actions: {
       raise: '22+,A2s+,K2s+,Q2s+,J4s+,T6s+,96s+,85s+,75s+,64s+,54s,43s,A2o+,K5o+,Q8o+,J8o+,T8o+,98o,87o',
       mixed: 'J3s-J2s,T5s-T4s,95s,84s,74s,63s,53s,K4o-K3o,Q7o,J7o,T7o,97o,76o'
+    } },
+
+  /* ================= VS LIMPERS (live staple) ================= */
+  { id: 'lmp-mp', group: 'vslimp', game: 'both', pos: 'HJ', vs: '1 limper',
+    title: 'vs 1 limper — HJ/MP iso', sub: 'Iso-raise to 4-5bb (Call = over-limp)',
+    note: 'Limpers under-fold to raises: iso a linear, value-lean range and take initiative. Over-limp only hands that crave cheap multiway flops.',
+    actions: {
+      raise: '66+,ATs+,A5s,KTs+,QTs+,JTs,T9s,98s,ATo+,KQo',
+      mixed: '55-44,A9s,A4s,KJo,QJo,87s',
+      call: '33-22,76s,65s,54s'
+    } },
+  { id: 'lmp-btn', group: 'vslimp', game: 'both', pos: 'BTN', vs: '1-2 limpers',
+    title: 'vs limpers — BTN iso', sub: 'Iso 4-5bb +1bb per limper (Call = over-limp)',
+    note: 'Best seat, widest iso. Over-limping speculative hands in position is fine; over-limping offsuit broadways is a leak — iso or fold them.',
+    actions: {
+      raise: '44+,A8s+,A5s-A4s,K9s+,Q9s+,J9s+,T8s+,98s,87s,ATo+,KJo+,QJo',
+      mixed: '33-22,A7s-A6s,A3s-A2s,K8s,Q8s,76s,A9o,KTo',
+      call: '65s,54s,43s,T7s,96s,86s,75s' },
+    extraMixed: { call: 'J8s,T9s' } },
+  { id: 'lmp-blind', group: 'vslimp', game: 'both', pos: 'SB', vs: '2+ limpers',
+    title: 'vs limpers — blind attack', sub: 'Raise BIG: 5-6bb + 1 per limper',
+    note: 'From the blinds you play the bloated pot out of position — so attack only with hands that dominate limping ranges, and size up hard. In the BB, checking your option with everything else is free.',
+    actions: {
+      raise: '77+,ATs+,A5s,KJs+,KQo,AJo+',
+      mixed: '66-55,A9s,KTs,QJs,JTs,ATo'
     } },
 
   /* ================= DEFENDS vs RFI ================= */

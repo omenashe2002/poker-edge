@@ -25,7 +25,7 @@ function renderLive(root) {
 
 function renderHomeGameCard(root) {
   var card = el('div', { class: 'card homegame-card' });
-  card.appendChild(el('div', { class: 'chart-title', text: '🏠 Host a home game' }));
+  card.appendChild(el('div', { class: 'chart-title', text: 'Host a home game' }));
   card.appendChild(el('div', { class: 'chart-sub', text: 'The ledger for cash-free home games: log every buy-in and cash-out per player, catch chip-count mismatches, and settle the night in the fewest possible payments — no spreadsheets, no arguments.' }));
   card.appendChild(el('button', {
     class: 'btn accent block', text: 'Start home game ledger',
@@ -98,11 +98,11 @@ function renderActiveSession(root, s) {
   // next hand commits marks
   var commitBar = el('div', { class: 'btn-row' });
   commitBar.appendChild(el('button', {
-    class: 'btn primary grow', text: '▶ Next hand (commit marks)',
+    class: 'btn primary grow', text: 'Next hand · commit marks',
     onclick: function () { commitHand(s); }
   }));
   commitBar.appendChild(el('button', {
-    class: 'btn accent', text: '🃏 Log key hand',
+    class: 'btn accent', text: 'Log key hand',
     onclick: function () { liveUI.logging = !liveUI.logging; liveUI.logDraft = null; rerender(); }
   }));
   root.appendChild(commitBar);

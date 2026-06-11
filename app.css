@@ -655,3 +655,12 @@ details summary { cursor: pointer; color: var(--info); font-size: 13px; margin-t
 /* v6: svg dock icons */
 .nav-ico svg { width: 19px; height: 19px; display: block; }
 .nav-ico { display: flex; align-items: center; justify-content: center; height: 20px; }
+
+/* v6.1 fix: study tabs unreachable on desktop (hidden h-scroll).
+   Wrap pills into rows on wide screens; keep swipe-scroll on phones. */
+@media (min-width: 560px) {
+  .pill-row { flex-wrap: wrap; overflow-x: visible; }
+}
+@media (max-width: 559.9px) {
+  .pill-row { mask-image: linear-gradient(90deg, #000 92%, transparent); -webkit-mask-image: linear-gradient(90deg, #000 92%, transparent); }
+}

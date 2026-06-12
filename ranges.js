@@ -19,6 +19,8 @@ var ACTION_META = {
   shove:  { label: 'Shove',  cls: 'act-raise' },
   call:   { label: 'Call',   cls: 'act-call'  },
   mixed:  { label: 'Mixed',  cls: 'act-mixed' },
+  mixedHigh: { label: 'Mostly', cls: 'act-mixed' },
+  mixedLow:  { label: 'Rarely', cls: 'act-mixed' },
   fold:   { label: 'Fold',   cls: 'act-fold'  }
 };
 
@@ -39,7 +41,9 @@ var RANGE_CHARTS = [
     sub: 'Open 2.2–2.5x online · 3–5x live', note: 'Tightest open. Under the gun you act first against 8 players: value-heavy, suited and connected.',
     actions: {
       raise: '66+,ATs+,A5s,KJs+,QJs,JTs,T9s,98s,AQo+',
-      mixed: '22-55,A9s,A4s,KTs,QTs,87s,AJo'
+      mixedHigh: 'A9s,KTs,AJo',
+      mixed: '55-44,QTs,A4s',
+      mixedLow: '33-22,87s'
     } },
   { id: 'rfi9-utg1', group: 'rfi', game: '9max', pos: 'UTG+1', title: 'RFI — UTG+1 (9-max)',
     sub: 'Open 2.2–2.5x online · 3–5x live', note: 'Barely wider than UTG.',
@@ -63,7 +67,9 @@ var RANGE_CHARTS = [
     sub: 'Open 2.2–2.5x', note: 'All pairs open profitably from here on.',
     actions: {
       raise: '22+,A7s+,A5s-A2s,K9s+,Q9s+,J9s+,T8s+,97s+,87s,76s,65s,54s,ATo+,KJo+,QJo',
-      mixed: 'A6s,K8s,Q8s,J8s,86s,75s,A9o,KTo,QTo,JTo'
+      mixedHigh: 'A6s,K8s,A9o,KTo',
+      mixed: 'Q8s,J8s,QTo,JTo',
+      mixedLow: '86s,75s'
     } },
   { id: 'rfi9-co', group: 'rfi', game: '9max', pos: 'CO', title: 'RFI — Cutoff (9-max & 6-max)',
     sub: 'Open 2.2–2.5x', note: '~27% of hands. You only have BTN + blinds left to beat.',
@@ -75,7 +81,9 @@ var RANGE_CHARTS = [
     sub: 'Open 2.2–2.5x', note: '~43%. Position is worth this much. If blinds are tight/passive, open even wider.',
     actions: {
       raise: '22+,A2s+,K2s+,Q4s+,J6s+,T6s+,96s+,85s+,75s+,64s+,54s,43s,A2o+,K8o+,Q9o+,J9o+,T8o+,98o',
-      mixed: 'Q3s-Q2s,95s,84s,74s,63s,53s,K7o,Q8o,J8o,T7o,97o,87o'
+      mixedHigh: 'K7o,Q8o,J8o,87o',
+      mixed: 'Q3s-Q2s,95s,84s,T7o,97o',
+      mixedLow: '74s,63s,53s'
     } },
   { id: 'rfi9-sb', group: 'rfi', game: '9max', pos: 'SB', title: 'RFI — Small Blind (9-max & 6-max)',
     sub: 'Open 3x (raise-or-fold baseline)', note: 'Solver SB strategies mix limps; a 3x raise-or-fold strategy is a strong, simple baseline. Vs a weak BB, raise even wider.',
@@ -101,6 +109,15 @@ var RANGE_CHARTS = [
       mixed: '33-22,A7s-A6s,A3s-A2s,K8s,Q8s,76s,A9o,KTo',
       call: '65s,54s,43s,T7s,96s,86s,75s' },
     extraMixed: { call: 'J8s,T9s' } },
+  { id: 'sb-limp', group: 'vslimp', game: 'both', pos: 'SB', vs: 'BB only',
+    title: 'SB limp strategy (folded to you)', sub: 'Raise 3x value \u00b7 Call = LIMP \u00b7 100bb vs BB',
+    note: 'When everyone folds to your small blind, modern strategy MIXES limps with raises: you are out of position with a forced half-bet already in, so a wide limp keeps the pot small with playable junk while your raises stay value-lean. Limp-folding to huge raises is fine; limp-reraise your traps (AA/KK mixed in) if the BB attacks limps relentlessly.',
+    actions: {
+      raise: '88+,ATs+,A5s-A4s,KJs+,QJs,JTs,AJo+,KQo',
+      mixedHigh: '77-66,A9s,KTs,QTs,T9s,98s,ATo,KJo',
+      call: '55-22,A8s-A6s,A3s-A2s,K2s-K9s,Q2s-QTs,J2s-J9s,T8s-T2s,97s-92s,87s-82s,76s-72s,65s-62s,54s-52s,43s-42s,32s,A2o-A9o,KTo-K2o,QJo-Q5o,JTo-J7o,T9o-T7o,98o-96o,87o-86o,76o,65o',
+      mixedLow: 'K9o'
+    } },
   { id: 'lmp-blind', group: 'vslimp', game: 'both', pos: 'SB', vs: '2+ limpers',
     title: 'vs limpers — blind attack', sub: 'Raise BIG: 5-6bb + 1 per limper',
     note: 'From the blinds you play the bloated pot out of position — so attack only with hands that dominate limping ranges, and size up hard. In the BB, checking your option with everything else is free.',
@@ -139,7 +156,9 @@ var RANGE_CHARTS = [
     note: 'Defend wide — you close action getting ~3.6:1. Vs live 3x opens, trim the weakest offsuit calls.',
     actions: {
       threebet: '99+,ATs+,A5s-A2s,KJs+,AQo+',
-      mixed: '66-88,A9s,KTs,QJs,JTs,76s,65s,AJo,KQo',
+      mixedHigh: '88,A9s,AJo,KQo',
+      mixed: '77-66,KTs,QJs,JTs',
+      mixedLow: '76s,65s',
       call: '22-55,A2s+,K4s+,Q6s+,J7s+,T7s+,96s+,86s+,75s+,64s+,54s,43s,A4o+,K9o+,Q9o+,J9o+,T8o+,98o,87o'
     } },
   { id: 'def-bb-sb', group: 'vsrfi', game: 'both', pos: 'BB', vs: 'SB open',
@@ -308,15 +327,23 @@ var POSITIONS_6MAX = ['LJ', 'HJ', 'CO', 'BTN', 'SB']; // LJ = 6-max UTG
 
 /* Build compiled chart objects once */
 var COMPILED_CHARTS = {};
+var FREQ_TIERS = { mixedHigh: 0.75, mixed: 0.5, mixedLow: 0.25 };
 (function compileAll() {
   for (var i = 0; i < RANGE_CHARTS.length; i++) {
     var spec = RANGE_CHARTS[i];
     var actions = {};
-    // primary actions first (precedence), 'mixed' listed in spec order
     for (var act in spec.actions) {
       if (spec.actions.hasOwnProperty(act)) actions[act] = spec.actions[act];
     }
     var chart = buildChart(actions);
+    // frequency map: how often each in-chart hand actually plays at equilibrium
+    var freq = {};
+    for (var a3 in spec.actions) {
+      if (!spec.actions.hasOwnProperty(a3)) continue;
+      var f = FREQ_TIERS[a3] !== undefined ? FREQ_TIERS[a3] : 1;
+      var cls3 = parseRange(spec.actions[a3]);
+      for (var lb3 in cls3) if (freq[lb3] === undefined) freq[lb3] = f;
+    }
     // extraMixed: hands that are mixed-into-a-specific-action (render amber,
     // grade as "that action OR fold both fine")
     var extraMixed = {};
@@ -329,7 +356,11 @@ var COMPILED_CHARTS = {};
         }
       }
     }
-    COMPILED_CHARTS[spec.id] = { spec: spec, chart: chart, extraMixed: extraMixed };
+    for (var lb4 in chart) {
+      if (chart[lb4] === 'mixedHigh' || chart[lb4] === 'mixedLow') chart[lb4] = 'mixed';
+      if (chart[lb4] === 'mixed' && freq[lb4] === undefined) freq[lb4] = 0.5;
+    }
+    COMPILED_CHARTS[spec.id] = { spec: spec, chart: chart, extraMixed: extraMixed, freq: freq };
   }
 })();
 

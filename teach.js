@@ -147,7 +147,8 @@ function explainAnswer(chartId, label, userAnswer, accepted) {
     parts.push(label + ' is a fold here (top ' + nature.percentile + '% hand, but this spot demands more).');
   } else if (act === 'mixed') {
     var tgt = compiled.extraMixed[label];
-    parts.push(label + ' is a mixed-frequency hand' + (tgt ? ' (sometimes ' + ACTION_META[tgt].label.toLowerCase() + ', sometimes fold)' : '') + ' — the EVs are nearly identical, which is exactly why solvers split it.');
+    var fq = compiled.freq && compiled.freq[label] !== undefined ? Math.round(compiled.freq[label] * 100) : 50;
+    parts.push(label + ' is a mixed-frequency hand played ~' + fq + '% of the time' + (tgt ? ' (into ' + ACTION_META[tgt].label.toLowerCase() + ')' : '') + ' — the EVs are nearly identical, which is exactly why solvers split it.');
   } else {
     parts.push(label + ' is a ' + ACTION_META[act].label.toUpperCase() + ' (top ' + nature.percentile + '% of starting hands).');
   }
@@ -240,9 +241,47 @@ function comboForLabel(label) {
   return combos[randInt(combos.length)];
 }
 
+/* ---------- hand recommendation engine ----------
+   Rule-based "going forward" advice from a logged hand. */
+function recommendHand(h, playerType) {
+  var bullets = [];
+  var priority = null;
+  var eff = parseFloat(h.effBB);
+  if (!isNaN(eff) && eff > 0) {
+    if (eff <= 15) bullets.push('At ' + eff + 'bb effective this is push/fold territory — open-jam or fold preflop, and treat any postflop pot as committed.');
+    else if (eff <= 35) bullets.push('Short effective stacks (' + eff + 'bb): tighten flat-calls, favor raise-or-fold trees, and remember SPR will be low — top pair commits.');
+    else if (eff >= 150) bullets.push('Very deep (' + eff + 'bb): implied odds hands gain, but so do reverse implied odds — avoid stacking off with one pair.');
+  }
+  var line = h.line || [];
+  var lost = (h.result || 0) < 0;
+  if ((line.indexOf('I bluffed') >= 0 || line.indexOf('I barreled') >= 0) && lost) {
+    priority = 'Live populations under-fold: save bluffs for capped ranges, scare cards, and opponents who have shown a fold button.';
+    bullets.push(priority);
+  }
+  if (line.indexOf('I called down') >= 0 && lost) {
+    priority = priority || 'Big live bets run value-heavy. Versus anyone but a maniac, over-folding one-pair hands to multi-street aggression prints.';
+    bullets.push('Multi-street call-downs need a frequency read, not a feeling — population triple-barrels are honest.');
+  }
+  if (line.indexOf('I faced 3-bet') >= 0) {
+    bullets.push('Unknown live 3-bets are value-weighted: continue tighter than the chart without blockers or position.');
+  }
+  if (line.indexOf('Limped pot') >= 0) {
+    bullets.push('Limped pots reward initiative: iso-raise bigger next time (4-5bb + 1 per limper) instead of joining the family.');
+  }
+  if (line.indexOf('I value bet') >= 0 && !lost) {
+    bullets.push('Thin value worked — keep pushing it: betting one street thinner than comfortable is where live win rates live.');
+  }
+  if (playerType && PLAYER_TYPES[playerType] && playerType !== 'unknown') {
+    bullets.push('Vs ' + PLAYER_TYPES[playerType].name + ': ' + PLAYER_TYPES[playerType].exploits.postflop[0]);
+  }
+  if (!bullets.length) bullets.push('Clean spot. Re-run the preflop check above and log the villain type to sharpen future advice.');
+  return { bullets: bullets, next: priority || bullets[0] };
+}
+
 if (typeof module !== 'undefined') {
   module.exports = {
-    PREFLOP_RANK: PREFLOP_RANK, handRank: handRank, familyOf: familyOf,
+    PREFLOP_RANK: PREFLOP_RANK,
+    recommendHand: recommendHand, handRank: handRank, familyOf: familyOf,
     bordersFor: bordersFor, borderSummary: borderSummary, borderDistance: borderDistance,
     handNature: handNature, explainAnswer: explainAnswer, mistakeSeverity: mistakeSeverity,
     SEVERITY_META: SEVERITY_META, interestingLabels: interestingLabels,

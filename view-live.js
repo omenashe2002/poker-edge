@@ -283,7 +283,7 @@ function renderPlayerPanel(s, seatIdx) {
 /* ---------- quick hand logger ---------- */
 function renderHandLogger(s) {
   if (!liveUI.logDraft) {
-    liveUI.logDraft = { cards: [], position: 'BTN', vs: '', line: [], result: '', note: '' };
+    liveUI.logDraft = { cards: [], position: 'BTN', vs: '', line: [], result: '', note: '', effBB: '', streets: { f: '', t: '', r: '' } };
   }
   var d = liveUI.logDraft;
   var card = el('div', { class: 'card logger' });
@@ -330,6 +330,20 @@ function renderHandLogger(s) {
   card.appendChild(el('div', { class: 'lab', text: 'What happened (tap all that apply)' }));
   card.appendChild(lineRow);
 
+  // effective stack + street actions
+  var effIn = el('input', { class: 'input', type: 'number', placeholder: 'effective stack (bb), e.g., 120', value: d.effBB });
+  effIn.setAttribute('inputmode', 'decimal');
+  effIn.addEventListener('input', function () { d.effBB = effIn.value; });
+  card.appendChild(el('div', { class: 'lab', text: 'Effective stack (bb)' }));
+  card.appendChild(effIn);
+  card.appendChild(el('div', { class: 'lab', text: 'Streets (optional \u2014 e.g., "b30 c" = bet 30, called)' }));
+  ['f', 't', 'r'].forEach(function (st) {
+    var names = { f: 'Flop', t: 'Turn', r: 'River' };
+    var sIn = el('input', { class: 'input', placeholder: names[st] + ' action\u2026', value: d.streets[st] });
+    sIn.addEventListener('input', function () { d.streets[st] = sIn.value; });
+    card.appendChild(sIn);
+  });
+
   // vs + result + note
   var vsIn = el('input', { class: 'input', placeholder: 'vs who? (name/seat)', value: d.vs });
   vsIn.addEventListener('input', function () { d.vs = vsIn.value; });
@@ -349,6 +363,7 @@ function renderHandLogger(s) {
         stakes: s.sb + '/' + s.bb, bb: s.bb,
         cards: d.cards.slice(), position: d.position, vs: d.vs,
         line: d.line.slice(), result: parseFloat(d.result) || 0,
+        effBB: d.effBB, streets: { f: d.streets.f, t: d.streets.t, r: d.streets.r },
         note: d.note, board: '', streetNotes: '', leaks: [], reviewed: false
       });
       liveUI.logging = false; liveUI.logDraft = null;

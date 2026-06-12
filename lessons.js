@@ -191,6 +191,25 @@ var LESSONS = [
     ]
   },
   {
+    id: 'limping', module: 'm2', icon: '\ud83d\udc0c', title: 'Limping: when calling first-in is right', minutes: 3,
+    obj: ['Know the one spot where open-limping is theoretically sound (the SB)', 'Over-limp correctly behind limpers', 'Punish limpers instead of joining them'],
+    body: [
+      'Everything this course says about aggression is true \u2014 and yet solvers LIMP. The reconciliation: limping is wrong where a raise wins dead money and initiative cheaply (any unopened pot with players behind), and right where those rewards shrink. There are exactly two legitimate limps, and both have charts in this app.',
+      'Limp #1 \u2014 the small blind, folded to you. You are guaranteed to play out of position with a forced half-bet already invested, against exactly one opponent. Raising your whole playable range here just builds a pot you must navigate blind-first; so modern strategy SPLITS: raise a value-lean range (the 3x range in the SB limp chart), and LIMP a wide band of playable hands \u2014 small pairs, suited junk with nut potential, weak aces, connected cards. You see flops at half price; the BB rarely punishes correctly. If they DO start attacking your limps relentlessly, limp-reraise traps (mix AA/KK into the limp) restore the balance instantly.',
+      'Limp #2 \u2014 over-limping behind limpers. Once one or more players limp, a raise no longer takes the pot down often (limpers under-fold), so speculative hands that crave cheap multiway flops \u2014 small pairs, suited connectors, weak suited aces \u2014 happily complete behind. The over-limp keeps the pot small, the implied odds enormous, and your range disguised. The hands that should NEVER over-limp are offsuit broadways: they make dominated second-best hands in exactly the multiway pots you just signed up for. Iso-raise or fold those.',
+      'What stays forbidden: open-limping FIRST from any non-SB seat. It forfeits fold equity, caps your range publicly, invites the blinds in free, and wins nothing when everyone misses. If a hand is not worth raising from your seat, it is not worth playing \u2014 the chart already made that call. And when OTHERS limp into you holding a real hand: attack, big. The vs Limpers charts are the most profitable charts in live poker for a reason.'
+    ],
+    take: ['SB folded-to-you: split raise (value) / limp (playability). The only theoretically-sound open-limp.', 'Over-limp speculative hands behind limpers; never offsuit broadways.', 'Everywhere else first-in: raise or fold \u2014 limping first caps you for no reward.'],
+    quiz: [
+      { q: 'Why is the small blind the one seat where open-limping is solver-approved?',
+        options: ['Tradition', 'Half the bet is already posted, only one player remains, and you are OOP forever \u2014 the raise reward shrinks while cheap playability gains', 'SB hands are stronger', 'The BB cannot raise a limp'],
+        a: 1, why: 'Discounted price + single opponent + permanent positional disadvantage flips the raise/limp math that applies everywhere else.' },
+      { q: 'Two players limp; you hold KJo on the button. Best default?',
+        options: ['Over-limp \u2014 see a cheap flop', 'Iso-raise big or fold: offsuit broadways make dominated hands in multiway pots, the over-limp\u2019s worst nightmare', 'Always fold', 'Min-raise'],
+        a: 1, why: 'KJo wants folds or a heads-up pot with initiative. Over-limping it into a family pot manufactures kicker problems \u2014 iso to 5bb+ or let it go.' }
+    ]
+  },
+  {
     id: 'threebetwars', module: 'm2', icon: '⚔️', title: '3-bet pots and the blocker wars', minutes: 3,
     obj: ['Defend correctly against 3-bets in and out of position', 'Build 4-bet ranges around blockers', 'Adjust the whole tree for live under-bluffed 3-bets'],
     body: [

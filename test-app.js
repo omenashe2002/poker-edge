@@ -128,7 +128,7 @@ function run(w) {
     w.checkLessonComplete(w.LESSONS[0]);
     w.rerender();
     ok(w.STATE.lessons[w.LESSONS[0].id] && w.STATE.lessons[w.LESSONS[0].id].done === true, 'lesson marked complete');
-    ok(w.LESSONS.length === 26 && w.COURSE_MODULES.length === 5, 'course has 26 lessons in 5 modules');
+    ok(w.LESSONS.length === 27 && w.COURSE_MODULES.length === 5, 'course has 27 lessons in 5 modules');
     // glossary term links inside the lesson
     ok(doc.querySelectorAll('.term').length > 0, 'glossary terms auto-linked in lesson');
     doc.querySelector('.term').click();
@@ -160,6 +160,20 @@ function run(w) {
     ok(er.rating >= 1000 && er.rating <= 2000 && typeof er.tier === 'string', 'EDGE rating computes: ' + er.rating + ' ' + er.tier);
     w.trainState.mode = null;
 
+    // v8: frequency gradients + SB limp chart + WPT sheet + logger v2 + recommendation
+    w.navTo('study');
+    w.studyState.tab = 'vslimp'; w.studyState.chartId = 'sb-limp'; w.rerender();
+    ok(doc.body.textContent.indexOf('SB limp strategy') >= 0, 'SB limp chart renders');
+    var sbc = w.getChart('sb-limp');
+    ok(sbc.chart['A2o'] === 'call' && sbc.chart['AA'] === 'raise', 'SB limp chart: A2o limps, AA raises');
+    w.studyState.tab = 'rfi'; w.studyState.chartId = 'rfi9-utg'; w.rerender();
+    var gradCells = doc.querySelectorAll('.cell[style*="linear-gradient"]');
+    ok(gradCells.length >= 5, 'frequency gradient cells render: ' + gradCells.length);
+    var utg = w.getChart('rfi9-utg');
+    ok(utg.freq['A9s'] === 0.75 && utg.freq['22'] === 0.25 && utg.freq['AA'] === 1, 'frequency tiers: A9s 75%, 22 25%, AA 100%');
+    w.studyState.tab = 'wpt'; w.rerender();
+    ok(doc.body.textContent.indexOf('ClubWPT Gold daily freerolls') >= 0, 'WPT Gold playbook renders');
+    ok(doc.body.textContent.indexOf('Chips are not money') >= 0, 'cash-vs-MTT differences render');
     // chart page: border summary + tappable cell info
     w.navTo('study');
     w.studyState.tab = 'rfi'; w.studyState.chartId = 'rfi9-utg'; w.rerender();
@@ -229,6 +243,18 @@ function run(w) {
     ok(w.STATE.hands[0].leaks.length === 1, 'leak tagged');
     findBtn(doc, '.btn', 'Mark reviewed').click();
     ok(w.STATE.hands[0].reviewed === true, 'hand marked reviewed');
+
+    // recommendation engine on the logged hand
+    w.STATE.hands[0].effBB = '12';
+    w.STATE.hands[0].line = ['I bluffed'];
+    w.STATE.hands[0].result = -200;
+    w.handsUI.openId = w.STATE.hands[0].id; w.rerender();
+    ok(doc.body.textContent.indexOf('EDGE recommendation') >= 0, 'recommendation panel renders');
+    ok(doc.body.textContent.indexOf('push/fold territory') >= 0, 'stack-depth advice fires at 12bb');
+    ok(doc.body.textContent.indexOf('Next time:') >= 0, 'next-time directive renders');
+    var stIns = Array.prototype.filter.call(doc.querySelectorAll('#view input'), function (i) { return (i.getAttribute('placeholder') || '').indexOf('Flop') >= 0; });
+    ok(stIns.length === 1, 'street-by-street editors render');
+    w.handsUI.openId = null; w.rerender();
 
     // tools: equity
     w.navTo('tools');

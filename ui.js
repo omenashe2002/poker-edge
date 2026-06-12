@@ -46,6 +46,17 @@ function toast(msg, bad) {
 /* ---------- 13x13 hand grid ----------
    chartObj: {chart: {label: action}, spec: {...}}
    highlight: optional label to outline (drill feedback)            */
+var ACT_COLOR = { raise: '#B5453A', threebet: '#B5453A', fourbet: '#B5453A', shove: '#B5453A', call: '#25754F' };
+function freqStyle(compiled, label) {
+  if (!compiled || !compiled.freq) return null;
+  var f = compiled.freq[label];
+  if (f === undefined || f >= 1) return null;
+  // shade the cell proportionally: action color for f%, fold color for the rest
+  var act = compiled.chart[label];
+  var base = act === 'mixed' ? '#9A742A' : (ACT_COLOR[act] || '#9A742A');
+  var pct = Math.round(f * 100);
+  return 'background: linear-gradient(135deg, ' + base + ' ' + pct + '%, #121617 ' + pct + '%);';
+}
 function renderHandGrid(compiled, highlight) {
   var wrap = el('div', { class: 'grid-wrap' });
   var grid = el('div', { class: 'hand-grid' });
@@ -56,7 +67,10 @@ function renderHandGrid(compiled, highlight) {
       var cls = 'cell ' + (act ? ACTION_META[act].cls : 'act-fold');
       if (i === j) cls += ' pair';
       if (highlight === label) cls += ' hl';
-      grid.appendChild(el('div', { class: cls, text: label, title: label + (act ? ' — ' + ACTION_META[act].label : ' — Fold') }));
+      var attrs = { class: cls, text: label, title: label + (act ? ' — ' + ACTION_META[act].label : ' — Fold') };
+      var fs = freqStyle(compiled, label);
+      if (fs) attrs.style = fs;
+      grid.appendChild(el('div', attrs));
     }
   }
   wrap.appendChild(grid);

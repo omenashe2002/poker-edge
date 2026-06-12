@@ -16,12 +16,13 @@ var STUDY_AREAS = [
   { id: 'charts', label: 'Charts', tabs: [
     { id: 'rfi', label: 'Open' },
     { id: 'vsrfi', label: 'Defend·3-Bet' },
-    { id: 'vslimp', label: 'vs Limpers' },
+    { id: 'vslimp', label: 'Limping' },
     { id: 'vs3bet', label: 'vs 3-Bet' },
     { id: 'pushfold', label: 'Push/Fold' }
   ] },
   { id: 'ref', label: 'Reference', tabs: [
     { id: 'cheat', label: 'Live Sheet' },
+    { id: 'wpt', label: 'MTT \u00b7 WPT' },
     { id: 'types', label: 'Player Types' },
     { id: 'videos', label: 'Videos' }
   ] }
@@ -67,6 +68,7 @@ function renderStudy(root) {
   if (studyState.tab === 'gloss') return renderGlossary(root);
   if (studyState.tab === 'cheat') return renderCheatsheet(root);
   if (studyState.tab === 'types') return renderTypes(root);
+  if (studyState.tab === 'wpt') return renderWptSheet(root);
   if (studyState.tab === 'videos') { root.appendChild(mastersLibraryCard()); return; }
   renderCharts(root);
 }
@@ -361,7 +363,8 @@ function renderCharts(root) {
     var info = studyState.cellInfo;
     var exp = explainAnswer(info.chartId, info.label, '', correctAnswers(info.chartId, info.label));
     var panel = el('div', { class: 'cell-info' });
-    panel.appendChild(el('div', { class: 'fb-verdict', text: info.label + ' · ' + (compiled.chart[info.label] ? ACTION_META[compiled.chart[info.label]].label : 'Fold') + ' · ' + classToCombos(info.label, []).length + ' combos · #' + (handRank(info.label) + 1) + '/169 by raw equity' }));
+    var fq = compiled.freq && compiled.freq[info.label] !== undefined ? Math.round(compiled.freq[info.label] * 100) : (compiled.chart[info.label] ? 100 : 0);
+    panel.appendChild(el('div', { class: 'fb-verdict', text: info.label + ' · ' + (compiled.chart[info.label] ? ACTION_META[compiled.chart[info.label]].label + ' ' + fq + '%' : 'Fold') + ' · ' + classToCombos(info.label, []).length + ' combos · #' + (handRank(info.label) + 1) + '/169 by raw equity' }));
     panel.appendChild(el('div', { class: 'fb-why', text: exp.text }));
     card.appendChild(panel);
   } else {
@@ -400,8 +403,9 @@ function interactiveGrid(compiled) {
         var cls = 'cell tappable ' + (act ? ACTION_META[act].cls : 'act-fold');
         if (i === j) cls += ' pair';
         if (studyState.cellInfo && studyState.cellInfo.label === label) cls += ' hl';
+        var fs = freqStyle(compiled, label);
         grid.appendChild(el('div', {
-          class: cls, text: label,
+          class: cls, text: label, style: fs || '',
           onclick: function () {
             studyState.cellInfo = (studyState.cellInfo && studyState.cellInfo.label === label) ? null : { chartId: compiled.spec.id, label: label };
             rerender();

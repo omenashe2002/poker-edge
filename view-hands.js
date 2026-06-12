@@ -45,7 +45,7 @@ function renderHandRow(h) {
   var cardsBox = el('span', { class: 'hand-cards' });
   (h.cards || []).forEach(function (c) { cardsBox.appendChild(cardChip(c)); });
   head.appendChild(cardsBox);
-  head.appendChild(el('span', { class: 'hand-meta', text: h.position + ' · ' + (h.stakes || '') + ' · ' + new Date(h.ts).toLocaleDateString() }));
+  head.appendChild(el('span', { class: 'hand-meta', text: h.position + (h.effBB ? ' · ' + h.effBB + 'bb' : '') + ' · ' + (h.stakes || '') + ' · ' + new Date(h.ts).toLocaleDateString() }));
   head.appendChild(el('span', { class: 'hand-result ' + (h.result >= 0 ? 'pos' : 'neg'), text: (h.result >= 0 ? '+' : '') + fmtMoney(h.result) }));
   card.appendChild(head);
   if (h.line && h.line.length) card.appendChild(el('div', { class: 'hand-line', text: h.line.join(' → ') + (h.vs ? '  (vs ' + h.vs + ')' : '') }));
@@ -86,6 +86,35 @@ function renderHandRow(h) {
   gto.appendChild(verdict);
   card.appendChild(gto);
   if (suggested) runCheck();
+
+  // EDGE recommendation
+  var ptype = null;
+  if (h.vs) {
+    for (var pid in STATE.players) {
+      if (STATE.players[pid].name.toLowerCase() === String(h.vs).toLowerCase()) ptype = STATE.players[pid].type;
+    }
+  }
+  var rec = recommendHand(h, ptype);
+  var recBox = el('div', { class: 'obj-box' });
+  recBox.appendChild(el('div', { class: 'exploit-h', text: 'EDGE recommendation' }));
+  var rul = el('ul', { class: 'tips' });
+  rec.bullets.forEach(function (b) { rul.appendChild(el('li', { text: b })); });
+  recBox.appendChild(rul);
+  recBox.appendChild(el('div', { class: 'fb-verdict mid', text: 'Next time: ' + rec.next }));
+  card.appendChild(recBox);
+
+  // stack + streets
+  var eff = el('input', { class: 'input', type: 'number', placeholder: 'effective stack (bb)', value: h.effBB || '' });
+  eff.addEventListener('change', function () { h.effBB = eff.value; saveState(); rerender(); });
+  card.appendChild(el('div', { class: 'lab', text: 'Effective stack (bb)' }));
+  card.appendChild(eff);
+  h.streets = h.streets || { f: '', t: '', r: '' };
+  card.appendChild(el('div', { class: 'lab', text: 'Street-by-street action' }));
+  [['f', 'Flop'], ['t', 'Turn'], ['r', 'River']].forEach(function (pair) {
+    var sIn = el('input', { class: 'input', placeholder: pair[1] + ' \u2014 e.g., "I bet 30, he called"', value: h.streets[pair[0]] || '' });
+    sIn.addEventListener('change', function () { h.streets[pair[0]] = sIn.value; saveState(); });
+    card.appendChild(sIn);
+  });
 
   // board + notes
   var board = el('input', { class: 'input', placeholder: 'Board (e.g., Ah 7c 2d / 9s / 2c)', value: h.board || '' });

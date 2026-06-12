@@ -45,6 +45,10 @@ var VIDEO_PICKS = {
     { t: 'How solvers build preflop ranges', who: 'GTO Wizard', q: 'GTO Wizard preflop ranges explained solver' },
     { t: 'Mixed strategies & indifference', who: 'GTO Wizard', q: 'GTO Wizard mixed strategy indifference poker' }
   ],
+  limping: [
+    { t: 'SB limping strategy, solved', who: 'GTO Wizard', q: 'GTO Wizard small blind limp strategy' },
+    { t: 'Attacking limpers in live games', who: 'Bart Hanson', q: 'Crush Live Poker attacking limpers iso raise' }
+  ],
   rfilogic: [
     { t: 'Opening ranges by position', who: 'Jonathan Little', q: 'Jonathan Little preflop opening ranges position' },
     { t: 'Live-game open sizing', who: 'Bart Hanson', q: 'Crush Live Poker open raise sizing live' }

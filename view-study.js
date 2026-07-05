@@ -6,19 +6,18 @@
    ============================================================ */
 'use strict';
 
-var studyState = { tab: 'course', chartId: 'rfi9-lj', cellInfo: null, lessonId: null, quizState: {}, glossQuery: '' };
+var studyState = { tab: 'course', chartId: 'rfi9-lj', cellInfo: null, lessonId: null, quizState: {}, glossQuery: '', fmt: 'cash', groupCash: 'rfi', groupMtt: 'mttrfi', pfOpen: null };
 
 var STUDY_AREAS = [
   { id: 'learn', label: 'Learn', tabs: [
     { id: 'course', label: 'Course' },
     { id: 'gloss', label: 'Glossary' }
   ] },
-  { id: 'charts', label: 'Charts', tabs: [
-    { id: 'rfi', label: 'Open' },
-    { id: 'vsrfi', label: 'Defend·3-Bet' },
-    { id: 'vslimp', label: 'Limping' },
-    { id: 'vs3bet', label: 'vs 3-Bet' },
-    { id: 'pushfold', label: 'Push/Fold' }
+    { id: 'charts', label: 'Charts', tabs: [
+    { id: 'preflop', label: 'Preflop' },
+    { id: 'flop', label: 'Flop' },
+    { id: 'turn', label: 'Turn' },
+    { id: 'river', label: 'River' }
   ] },
   { id: 'ref', label: 'Reference', tabs: [
     { id: 'cheat', label: 'Live Sheet' },
@@ -336,10 +335,63 @@ function checkLessonComplete(L) {
 }
 
 /* ---------- charts ---------- */
-function renderCharts(root) {
-  var charts = chartsByGroup(studyState.tab);
-  if (studyState.tab === 'vs3bet') charts = charts.concat(chartsByGroup('vs4bet'));
+var CHART_GROUPS = {
+  cash: [
+    { id: 'rfi', label: 'Open' },
+    { id: 'vsrfi', label: 'Defend \u00b7 3-Bet' },
+    { id: 'vslimp', label: 'Limping' },
+    { id: 'vs3bet', label: 'vs 3-Bet \u00b7 4-Bet' }
+  ],
+  mtt: [
+    { id: 'mttrfi', label: 'Open \u00b7 40bb' },
+    { id: 'mttdef', label: 'BB Defense \u00b7 40bb' },
+    { id: 'mtt25', label: 'Jam \u00b7 25bb' },
+    { id: 'pushfold', label: 'Push/Fold \u00b7 \u226415bb' }
+  ]
+};
 
+function chartsForGroupStudy(g) {
+  var cs = chartsByGroup(g);
+  if (g === 'vs3bet') cs = cs.concat(chartsByGroup('vs4bet'));
+  return cs;
+}
+
+/* Charts area dispatcher: format toggle + street routing.
+   Preflop renders 13x13 grids; flop/turn/river render texture strategy cards. */
+function renderCharts(root) {
+  var fmtSeg = el('div', { class: 'seg fmt-seg' });
+  [['cash', 'Cash \u00b7 100bb'], ['mtt', 'MTT \u00b7 by depth']].forEach(function (f) {
+    fmtSeg.appendChild(el('button', {
+      class: studyState.fmt === f[0] ? 'on' : '', text: f[1],
+      onclick: function () { studyState.fmt = f[0]; studyState.cellInfo = null; studyState.pfOpen = null; rerender(); }
+    }));
+  });
+  root.appendChild(fmtSeg);
+  if (studyState.tab === 'preflop') return renderPreflopCharts(root);
+  renderStreetCards(root, studyState.tab);
+}
+
+function renderPreflopCharts(root) {
+  var groups = CHART_GROUPS[studyState.fmt];
+  var curKey = studyState.fmt === 'cash' ? 'groupCash' : 'groupMtt';
+  var cur = studyState[curKey], found = false;
+  for (var i = 0; i < groups.length; i++) if (groups[i].id === cur) found = true;
+  if (!found) { cur = groups[0].id; studyState[curKey] = cur; }
+  var chips = el('div', { class: 'chip-row' });
+  groups.forEach(function (g) {
+    chips.appendChild(el('button', {
+      class: 'chip' + (g.id === cur ? ' on' : ''), text: g.label,
+      onclick: function () { studyState[curKey] = g.id; studyState.cellInfo = null; rerender(); }
+    }));
+  });
+  root.appendChild(chips);
+  renderChartDetail(root, chartsForGroupStudy(cur));
+  if (studyState.fmt === 'mtt') {
+    root.appendChild(el('p', { class: 'fineprint', text: 'MTT charts assume antes in play. Think in effective big blinds \u2014 the depth, not the blind level, picks the chart. Near a bubble or pay jump, tighten every range (ICM).' }));
+  }
+}
+
+function renderChartDetail(root, charts) {
   var sel = el('select', { class: 'select', onchange: function (e) { studyState.chartId = e.target.value; studyState.cellInfo = null; rerender(); } });
   var found = false;
   charts.forEach(function (c) {
@@ -364,7 +416,7 @@ function renderCharts(root) {
     var exp = explainAnswer(info.chartId, info.label, '', correctAnswers(info.chartId, info.label));
     var panel = el('div', { class: 'cell-info' });
     var fq = compiled.freq && compiled.freq[info.label] !== undefined ? Math.round(compiled.freq[info.label] * 100) : (compiled.chart[info.label] ? 100 : 0);
-    panel.appendChild(el('div', { class: 'fb-verdict', text: info.label + ' · ' + (compiled.chart[info.label] ? ACTION_META[compiled.chart[info.label]].label + ' ' + fq + '%' : 'Fold') + ' · ' + classToCombos(info.label, []).length + ' combos · #' + (handRank(info.label) + 1) + '/169 by raw equity' }));
+    panel.appendChild(el('div', { class: 'fb-verdict', text: info.label + ' \u00b7 ' + (compiled.chart[info.label] ? ACTION_META[compiled.chart[info.label]].label + ' ' + fq + '%' : 'Fold') + ' \u00b7 ' + classToCombos(info.label, []).length + ' combos \u00b7 #' + (handRank(info.label) + 1) + '/169 by raw equity' }));
     panel.appendChild(el('div', { class: 'fb-why', text: exp.text }));
     card.appendChild(panel);
   } else {
@@ -391,6 +443,76 @@ function renderCharts(root) {
   root.appendChild(card);
 
   root.appendChild(el('p', { class: 'fineprint', text: 'Baselines are simplified solver approximations for drilling. Tune them in ranges.js as your study deepens.' }));
+}
+
+/* ---------- postflop street strategy cards ---------- */
+function pfBoardChips(bstr) {
+  var wrap = el('span', { class: 'pf-board' });
+  var segs = bstr.split(' ');
+  for (var si = 0; si < segs.length; si++) {
+    if (si > 0) wrap.appendChild(el('span', { class: 'pf-board-sep', text: '+' }));
+    for (var i = 0; i + 1 < segs[si].length; i += 2) {
+      wrap.appendChild(cardChip(parseCard(segs[si].slice(i, i + 2))));
+    }
+  }
+  return wrap;
+}
+
+function pfRow(pc, r, i) {
+  var key = pc.id + ':' + i;
+  var open = studyState.pfOpen === key;
+  var row = el('div', { class: 'pf-row' + (open ? ' open' : ''), onclick: function () { studyState.pfOpen = open ? null : key; rerender(); } });
+  var head = el('div', { class: 'pf-head' });
+  var left = el('div', { class: 'pf-left' });
+  left.appendChild(el('div', { class: 'pf-tex', text: r.tex }));
+  if (r.board) {
+    if (/^[AKQJT2-9][cdhs]/.test(r.board)) left.appendChild(pfBoardChips(r.board));
+    else left.appendChild(el('div', { class: 'pf-boardnote', text: r.board }));
+  }
+  head.appendChild(left);
+  var right = el('div', { class: 'pf-right' });
+  var bar = el('div', { class: 'pf-bar' });
+  bar.appendChild(el('div', { class: 'pf-bar-fill', style: 'width:' + Math.round(r.freq * 100) + '%' }));
+  right.appendChild(bar);
+  right.appendChild(el('div', { class: 'pf-freq', text: Math.round(r.freq * 100) + '%' }));
+  right.appendChild(el('div', { class: 'pf-size', text: r.size }));
+  head.appendChild(right);
+  row.appendChild(head);
+  row.appendChild(el('div', { class: 'pf-plan', text: r.plan }));
+  if (open) {
+    var why = el('div', { class: 'pf-why' });
+    why.appendChild(el('div', { class: 'fb-why', text: r.why }));
+    if (studyState.fmt === 'mtt' && r.mtt) why.appendChild(el('div', { class: 'pf-mttnote', text: 'MTT: ' + r.mtt }));
+    row.appendChild(why);
+  }
+  return row;
+}
+
+function renderStreetCards(root, street) {
+  var cards = postflopByStreet(street, studyState.fmt);
+  if (!cards.length) {
+    root.appendChild(el('p', { class: 'hint', text: 'No ' + street + ' strategy cards for this format yet.' }));
+    return;
+  }
+  cards.forEach(function (pc) {
+    var card = el('div', { class: 'card' });
+    card.appendChild(el('div', { class: 'pf-scen', text: pc.scenario }));
+    card.appendChild(el('div', { class: 'chart-title', text: pc.title }));
+    if (pc.sub) card.appendChild(el('div', { class: 'chart-sub', text: pc.sub }));
+    card.appendChild(el('p', { class: 'lesson-p pf-intro', text: pc.intro }));
+    card.appendChild(el('div', { class: 'pf-collab', text: 'BET FREQUENCY \u00b7 SIZE \u2014 tap a texture for the why' }));
+    pc.rows.forEach(function (r, i) { card.appendChild(pfRow(pc, r, i)); });
+    if (pc.keys && pc.keys.length) {
+      var bs = el('div', { class: 'border-box' });
+      bs.appendChild(el('div', { class: 'exploit-h', text: 'Memorize' }));
+      pc.keys.forEach(function (k) {
+        bs.appendChild(el('div', { class: 'border-row' }, [el('b', { text: k })]));
+      });
+      card.appendChild(bs);
+    }
+    root.appendChild(card);
+  });
+  root.appendChild(el('p', { class: 'fineprint', text: 'Frequencies are solver-aggregate baselines (GTO Wizard / RangeConverter reports), simplified for real-table recall. The texture logic transfers; the WHY column is the lesson.' }));
 }
 
 function interactiveGrid(compiled) {

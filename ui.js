@@ -266,7 +266,7 @@ function sceneForSpec(spec) {
     for (var i = a + 1; i < b; i++) folds.push(ACTION_ORDER_9[i]);
   }
   var toAct = 'your move';
-  if (spec.group === 'rfi' || spec.group === 'pushfold') {
+  if (spec.group === 'rfi' || spec.group === 'pushfold' || spec.group === 'mttrfi' || spec.group === 'mtt25') {
     foldUpTo(hero);
     toAct = 'folded to you';
   } else if (spec.group === 'vslimp') {
@@ -275,7 +275,7 @@ function sceneForSpec(spec) {
     chips[limper] = 'limp';
     foldBetween(limper, hero);
     toAct = limper + ' limped \u2192 you';
-  } else if (spec.group === 'vsrfi') {
+  } else if (spec.group === 'vsrfi' || spec.group === 'mttdef') {
     var raiserKey = (spec.vs || '').split(' ')[0];
     var raiser = seatOf(raiserKey);
     foldUpTo(raiser);

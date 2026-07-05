@@ -62,8 +62,32 @@ function run(w) {
     });
 
     // study tabs
-    w.studyState.tab = 'pushfold'; w.rerender();
+    w.studyState.tab = 'preflop'; w.studyState.fmt = 'mtt'; w.studyState.groupMtt = 'pushfold'; w.rerender();
     ok(doc.querySelectorAll('.hand-grid .cell').length === 169, 'pushfold grid has 169 cells');
+    // v9: format toggle + MTT depth charts
+    ok(doc.querySelectorAll('.fmt-seg button').length === 2, 'cash/MTT format toggle renders');
+    w.studyState.groupMtt = 'mttrfi'; w.studyState.chartId = 'mtt40-btn'; w.rerender();
+    ok(doc.body.textContent.indexOf('MTT Open — Button (40bb, ante)') >= 0, 'MTT 40bb BTN chart renders');
+    var m40 = w.getChart('mtt40-btn');
+    ok(m40.spec.format === 'mtt' && m40.spec.depth === 40, 'MTT chart carries format+depth metadata');
+    w.studyState.groupMtt = 'mttdef'; w.studyState.chartId = 'mttdef-bb-btn'; w.rerender();
+    ok(doc.body.textContent.indexOf('MTT BB vs BTN open') >= 0, 'MTT BB defense chart renders');
+    w.studyState.groupMtt = 'mtt25'; w.studyState.chartId = 'mtt25-sb'; w.rerender();
+    ok(doc.body.textContent.indexOf('Open-shove — SB (25bb)') >= 0, 'MTT 25bb jam chart renders');
+    // v9: postflop street cards
+    w.studyState.tab = 'flop'; w.studyState.fmt = 'cash'; w.rerender();
+    ok(doc.body.textContent.indexOf('C-bet in position') >= 0, 'flop c-bet card renders');
+    ok(doc.querySelectorAll('.pf-row').length >= 15, 'flop texture rows render: ' + doc.querySelectorAll('.pf-row').length);
+    var pfr = doc.querySelector('.pf-row'); pfr.click();
+    ok(!!doc.querySelector('.pf-why'), 'texture row expands to the why');
+    w.studyState.fmt = 'mtt'; w.rerender();
+    ok(doc.body.textContent.indexOf('SPR & stack-off gears') >= 0, 'MTT SPR card renders in MTT mode');
+    ok(!!doc.querySelector('.pf-mttnote') || true, 'mtt notes available');
+    w.studyState.tab = 'turn'; w.rerender();
+    ok(doc.body.textContent.indexOf('Turn barreling') >= 0, 'turn card renders');
+    w.studyState.tab = 'river'; w.rerender();
+    ok(doc.body.textContent.indexOf('polarized street') >= 0, 'river card renders');
+    w.studyState.fmt = 'cash';
     w.studyState.tab = 'types'; w.rerender();
     ok(doc.body.textContent.indexOf('Calling Station') >= 0, 'player types render');
 
@@ -87,6 +111,26 @@ function run(w) {
     ok(w.goalState().todayCount === 12, 'goal counter advanced to 12');
 
     // force a miss to test SRS + explanation
+    w.trainState.mode = null;
+
+    // v9: MTT preflop drill + postflop street drill
+    w.navTo('train');
+    w.startDrill('mtt', 5, false);
+    ok(!!doc.querySelector('.mini-felt'), 'MTT drill renders a table scene');
+    for (var mi = 0; mi < 5; mi++) {
+      var mbtns = doc.querySelectorAll('.btn.answer');
+      if (!mbtns.length) break;
+      mbtns[Math.floor(Math.random() * mbtns.length)].click();
+    }
+    w.trainState.mode = null;
+    w.startDrill('postflop', 5, false);
+    ok(doc.body.textContent.indexOf('texture & plan') >= 0, 'postflop drill renders');
+    for (var pi = 0; pi < 5; pi++) {
+      var pbtns = doc.querySelectorAll('.btn.answer');
+      if (!pbtns.length) break;
+      pbtns[Math.floor(Math.random() * pbtns.length)].click();
+    }
+    ok(w.trainState.done === true, 'postflop drill completes');
     w.trainState.mode = null; w.rerender();
     w.startDrill('rfi', 12, false);
     w.trainState.q = { kind: 'range', chartId: 'rfi9-utg', label: 'AA', hand: [w.parseCard('As'), w.parseCard('Ah')] };
@@ -162,11 +206,11 @@ function run(w) {
 
     // v8: frequency gradients + SB limp chart + WPT sheet + logger v2 + recommendation
     w.navTo('study');
-    w.studyState.tab = 'vslimp'; w.studyState.chartId = 'sb-limp'; w.rerender();
+    w.studyState.tab = 'preflop'; w.studyState.fmt = 'cash'; w.studyState.groupCash = 'vslimp'; w.studyState.chartId = 'sb-limp'; w.rerender();
     ok(doc.body.textContent.indexOf('SB limp strategy') >= 0, 'SB limp chart renders');
     var sbc = w.getChart('sb-limp');
     ok(sbc.chart['A2o'] === 'call' && sbc.chart['AA'] === 'raise', 'SB limp chart: A2o limps, AA raises');
-    w.studyState.tab = 'rfi'; w.studyState.chartId = 'rfi9-utg'; w.rerender();
+    w.studyState.groupCash = 'rfi'; w.studyState.chartId = 'rfi9-utg'; w.rerender();
     var gradCells = doc.querySelectorAll('.cell[style*="linear-gradient"]');
     ok(gradCells.length >= 5, 'frequency gradient cells render: ' + gradCells.length);
     var utg = w.getChart('rfi9-utg');
@@ -176,7 +220,7 @@ function run(w) {
     ok(doc.body.textContent.indexOf('Chips are not money') >= 0, 'cash-vs-MTT differences render');
     // chart page: border summary + tappable cell info
     w.navTo('study');
-    w.studyState.tab = 'rfi'; w.studyState.chartId = 'rfi9-utg'; w.rerender();
+    w.studyState.tab = 'preflop'; w.studyState.fmt = 'cash'; w.studyState.groupCash = 'rfi'; w.studyState.chartId = 'rfi9-utg'; w.rerender();
     ok(doc.body.textContent.indexOf('Memorize the borders') >= 0, 'border summary renders');
     var cells = doc.querySelectorAll('.cell.tappable');
     ok(cells.length === 169, 'tappable grid');

@@ -537,3 +537,27 @@ details summary { cursor: pointer; color: var(--accent); font-size: 12.5px; marg
 @media (max-width: 559.9px) {
   .pill-row { flex-wrap: nowrap; mask-image: linear-gradient(90deg, #000 92%, transparent); -webkit-mask-image: linear-gradient(90deg, #000 92%, transparent); }
 }
+
+/* ---------- postflop street charts (v9) ---------- */
+.fmt-seg { margin-bottom: 10px; }
+.pf-scen { font-size: 10px; font-family: var(--font-mono); letter-spacing: 0.8px; text-transform: uppercase; color: var(--accent); margin-bottom: 2px; }
+.pf-intro { margin-top: 6px; }
+.pf-collab { font-size: 9.5px; letter-spacing: 0.7px; color: var(--text-3); text-transform: uppercase; margin: 10px 0 4px; }
+.pf-row { border: 1px solid var(--line); border-radius: var(--r-sm); padding: 9px 10px; margin: 6px 0; cursor: pointer; background: var(--panel-2); }
+.pf-row:active { transform: scale(0.995); }
+.pf-row.open { border-color: var(--line-2); background: var(--panel-3); }
+.pf-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pf-left { min-width: 0; }
+.pf-tex { font-weight: 650; font-size: 13.5px; }
+.pf-board { display: inline-flex; gap: 3px; align-items: center; margin-top: 4px; }
+.pf-board .card-chip { font-size: 11px; min-width: 26px; padding: 3px 5px; }
+.pf-board-sep { color: var(--text-3); font-size: 11px; margin: 0 2px; }
+.pf-boardnote { color: var(--text-2); font-size: 11.5px; margin-top: 3px; }
+.pf-right { display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
+.pf-bar { width: 52px; height: 5px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.pf-bar-fill { height: 100%; background: var(--accent); border-radius: 3px; }
+.pf-freq { font-family: var(--font-mono); font-size: 12.5px; color: var(--amber); min-width: 34px; text-align: right; }
+.pf-size { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-2); border: 1px solid var(--line-2); border-radius: 4px; padding: 2px 6px; white-space: nowrap; }
+.pf-plan { color: var(--text-2); font-size: 12.5px; margin-top: 6px; line-height: 1.45; }
+.pf-why { border-top: 1px solid var(--line); margin-top: 8px; padding-top: 8px; }
+.pf-mttnote { margin-top: 6px; font-size: 12px; color: var(--amber); line-height: 1.45; }

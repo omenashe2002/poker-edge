@@ -194,8 +194,13 @@ function chartMastery(chartId, windowN) {
   return { mastery: s / creds.length, n: creds.length };
 }
 function groupMastery(group) {
-  var charts = chartsByGroup(group);
-  if (group === 'vs3bet') charts = charts.concat(chartsByGroup('vs4bet'));
+  var charts;
+  if (group === 'mtt') {
+    charts = chartsByGroup('mttrfi').concat(chartsByGroup('mttdef')).concat(chartsByGroup('mtt25'));
+  } else {
+    charts = chartsByGroup(group);
+    if (group === 'vs3bet') charts = charts.concat(chartsByGroup('vs4bet'));
+  }
   var sum = 0, n = 0;
   charts.forEach(function (c) {
     var m = chartMastery(c.spec.id);

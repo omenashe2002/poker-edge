@@ -12,6 +12,8 @@ var DRILL_MODES = [
   { id: 'vslimp', label: 'vs Limpers', desc: 'Limpers in front → Fold / Over-limp / Iso-raise', group: 'vslimp' },
   { id: 'vs3bet', label: 'vs 3-Bet', desc: 'You opened, got 3-bet → Fold / Call / 4-Bet', group: 'vs3bet' },
   { id: 'pushfold', label: 'Push/Fold', desc: 'Short-stack MTT → Shove or Fold', group: 'pushfold' },
+  { id: 'mtt', label: 'MTT by Depth', desc: '40bb opens · BB defense · 25bb jams', group: 'mtt' },
+  { id: 'postflop', label: 'Postflop Streets', desc: 'C-bets · barrels · rivers, by texture', group: null },
   { id: 'math', label: 'Poker Math', desc: 'Pot odds · MDF · bluff break-even · outs', group: null }
 ];
 
@@ -95,17 +97,17 @@ function renderExamCard(root) {
 
 function startExam() {
   var qs = [];
-  ['rfi', 'vsrfi', 'vs3bet', 'pushfold'].forEach(function (group) {
-    var charts = chartsByGroup(group);
-    if (group === 'vs3bet') charts = charts.concat(chartsByGroup('vs4bet'));
-    for (var i = 0; i < 5; i++) {
+  ['rfi', 'vsrfi', 'vs3bet', 'pushfold', 'mtt'].forEach(function (group) {
+    var charts = chartsForMode(group);
+    for (var i = 0; i < (group === 'mtt' ? 3 : 4); i++) {
       var compiled = charts[randInt(charts.length)];
       var pool = interestingLabels(compiled.spec.id);
       var label = Math.random() < 0.7 ? pool[randInt(pool.length)] : comboClass.apply(null, sampleHand());
       qs.push({ kind: 'range', chartId: compiled.spec.id, label: label, hand: comboForLabel(label) });
     }
   });
-  for (var m = 0; m < 5; m++) qs.push(makeMathQuestion());
+  for (var m = 0; m < 3; m++) qs.push(makeMathQuestion());
+  for (var p = 0; p < 3; p++) qs.push(makePostflopQuestion());
   shuffleInPlace(qs);
   trainState.examQs = qs;
   trainState.examSaved = false;
@@ -133,7 +135,7 @@ function renderDrillPicker(root) {
     if (m.group) {
       card.appendChild(masteryBar(groupMastery(m.group), 'mastery'));
     } else {
-      var s = drillStats('math');
+      var s = drillStats(m.id === 'postflop' ? 'postflop' : 'math');
       card.appendChild(masteryBar(s.n ? s.acc : null, 'accuracy'));
     }
     var btns = el('div', { class: 'btn-row' });
@@ -210,9 +212,9 @@ function nextQuestion() {
     return;
   }
   if (trainState.mode === 'math') { trainState.q = makeMathQuestion(); return; }
+  if (trainState.mode === 'postflop') { trainState.q = makePostflopQuestion(); return; }
   var group = trainState.mode;
-  var charts = chartsByGroup(group);
-  if (group === 'vs3bet') charts = charts.concat(chartsByGroup('vs4bet'));
+  var charts = chartsForMode(group);
   // adaptive: weight charts toward low mastery
   var weights = charts.map(function (c) {
     var m = chartMastery(c.spec.id);
@@ -229,6 +231,27 @@ function nextQuestion() {
     label = comboClass(h[0], h[1]);
   }
   trainState.q = { kind: 'range', chartId: compiled.spec.id, label: label, hand: comboForLabel(label) };
+}
+
+
+function chartsForMode(group) {
+  if (group === 'mtt') {
+    return chartsByGroup('mttrfi').concat(chartsByGroup('mttdef')).concat(chartsByGroup('mtt25'));
+  }
+  var charts = chartsByGroup(group);
+  if (group === 'vs3bet') charts = charts.concat(chartsByGroup('vs4bet'));
+  return charts;
+}
+
+function makePostflopQuestion() {
+  var item = POSTFLOP_DRILLS[randInt(POSTFLOP_DRILLS.length)];
+  var opts = item.opts.slice();
+  shuffleInPlace(opts);
+  var q = { kind: 'math', mathKind: 'postflop', prompt: item.q, detail: item.street.toUpperCase() + ' \u00b7 texture & plan' };
+  q.options = opts.map(function (o) { return o.label; });
+  for (var i = 0; i < opts.length; i++) if (opts[i].k === item.a) q.correctIdx = i;
+  q.explain = item.why;
+  return q;
 }
 
 function weightedPick(weights) {
@@ -418,7 +441,7 @@ function gradeMath(idx) {
   var q = trainState.q;
   var correct = idx === q.correctIdx;
   recordAnswerForGoal();
-  STATE.drills.push({ ts: Date.now(), mode: 'math', chartId: q.mathKind, label: '', answer: idx >= 0 ? q.options[idx] : 'timeout', correct: correct, credit: correct ? 1 : 0 });
+  STATE.drills.push({ ts: Date.now(), mode: q.mathKind === 'postflop' ? 'postflop' : 'math', chartId: q.mathKind, label: '', answer: idx >= 0 ? q.options[idx] : 'timeout', correct: correct, credit: correct ? 1 : 0 });
   saveState();
   trainState.results.push({ label: q.mathKind, chartId: 'math', correct: correct, severity: correct ? null : 'mistake', credit: correct ? 1 : 0 });
   var box = el('div', { class: 'card feedback ' + (correct ? 'good' : 'bad') });

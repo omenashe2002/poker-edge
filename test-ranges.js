@@ -22,8 +22,24 @@ ok(charts.length >= 30, charts.length + ' charts defined');
 
 var pctBands = { // expected % of all combos in chart (raise+mixed+call), loose sanity bands
   'rfi9-utg': [8, 18], 'rfi9-utg1': [9, 20], 'rfi9-mp': [11, 23], 'rfi9-lj': [13, 27],
-  'rfi9-hj': [16, 32], 'rfi9-co': [21, 38], 'rfi9-btn': [35, 55], 'rfi9-sb': [38, 60]
+  'rfi9-hj': [16, 32], 'rfi9-co': [21, 38], 'rfi9-btn': [35, 55], 'rfi9-sb': [38, 60],
+  // v9 MTT charts: 40bb opens widen positionally; defense scales with opener width
+  'mtt40-utg': [14, 22], 'mtt40-utg1': [16, 25], 'mtt40-lj': [20, 29], 'mtt40-hj': [25, 36],
+  'mtt40-co': [33, 46], 'mtt40-btn': [52, 68], 'mtt40-sb': [36, 50],
+  'mttdef-bb-ep': [36, 50], 'mttdef-bb-hj': [46, 60], 'mttdef-bb-co': [58, 72], 'mttdef-bb-btn': [66, 82],
+  'mtt25-co': [18, 28], 'mtt25-btn': [36, 50], 'mtt25-sb': [30, 44]
 };
+
+// v9: every chart declares format + depth; MTT groups exist
+var fmtOk = true, mttCount = 0;
+charts.forEach(function (s) {
+  if (s.format !== 'cash' && s.format !== 'mtt') { fmtOk = false; console.error('  FAIL ' + s.id + ' missing format'); }
+  if (typeof s.depth !== 'number') { fmtOk = false; console.error('  FAIL ' + s.id + ' missing depth'); }
+  if (s.format === 'mtt') mttCount++;
+});
+ok(fmtOk, 'every chart carries format + depth metadata');
+ok(mttCount >= 30, mttCount + ' MTT-format charts (push/fold + 40bb + 25bb + defense)');
+ok(ctx.GROUP_ANSWERS.mttrfi && ctx.GROUP_ANSWERS.mttdef && ctx.GROUP_ANSWERS.mtt25, 'MTT drill answer sets registered');
 
 charts.forEach(function (spec) {
   var compiled = ctx.COMPILED_CHARTS[spec.id];

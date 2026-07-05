@@ -4,6 +4,8 @@ A private, personal poker app: study GTO baselines, drill them until they're ins
 
 Built to pair with *Modern Poker Theory* (Michael Acevedo): the **Study** and **Train** tabs cover the GTO half; the **Live** tab and player-type field guide cover the exploitative half.
 
+**v9 — the chart system, rebuilt.** Charts are now separated by **format** (Cash · 100bb vs MTT · by stack depth) and by **street** (Preflop · Flop · Turn · River). MTT preflop lives at three depths — 40bb opens + BB defense (rule of 5-6-7-8-9-10 perimeters, ante-adjusted), 25bb open-jams, and ≤15bb push/fold — while the postflop tabs hold texture-driven strategy cards (c-bet IP/OOP, 3-bet pots, MDF defense, turn barreling, probes, river value/bluff ratios) distilled from solver aggregate reports, each with per-texture frequency, sizing, and the why. Train adds **MTT by Depth** and **Postflop Streets** drill modes; the exam now samples both.
+
 No accounts, no server, no build tools. One folder of files that runs in any browser. **All your data stays on your device.**
 
 ---
